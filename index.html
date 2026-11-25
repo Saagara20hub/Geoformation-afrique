@@ -419,6 +419,22 @@
                 </button>
             </form>
 
+            <!-- Étape : lien de connexion envoyé par e-mail -->
+            <div id="email-link-box" class="hidden pt-4 border-t border-stone-200 space-y-4">
+                <div class="bg-ochre-50 border border-ochre-700/20 rounded-xl p-3.5 text-xs text-stone-800 space-y-1.5">
+                    <p class="font-semibold text-ochre-800">Vérifiez votre boîte e-mail</p>
+                    <p id="email-link-text" class="text-stone-600 leading-relaxed"></p>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                    <button type="button" onclick="cancelMfaStep()" class="px-3.5 py-2 rounded-xl border border-stone-300 text-xs font-medium text-stone-700 hover:bg-stone-50">
+                        Déconnexion
+                    </button>
+                    <button type="button" onclick="resendEmailOtp()" class="flex-1 py-2.5 rounded-xl bg-ochre-700 hover:bg-ochre-600 text-white text-xs font-semibold transition">
+                        Renvoyer le lien par e-mail
+                    </button>
+                </div>
+            </div>
+
             <!-- Étape MFA (TOTP Authenticator ou Code de vérification à 6 chiffres) -->
             <div id="mfa-step-box" class="hidden pt-4 border-t border-stone-200 space-y-4">
                 <div class="bg-ochre-50 border border-ochre-700/20 rounded-xl p-3.5 text-xs text-stone-800 space-y-1.5">
@@ -1851,7 +1867,10 @@ on conflict (slug) do nothing;</pre>
                     const { data, error } = await supabaseClient.auth.signUp({
                         email,
                         password,
-                        options: { data: { full_name: fullNameInput || email.split('@')[0] } }
+                        options: {
+                            data: { full_name: fullNameInput || email.split('@')[0] },
+                            emailRedirectTo: getSiteRedirectUrl()
+                        }
                     });
                     if (error) {
                         showToast('Inscription impossible : ' + error.message);
@@ -1861,25 +1880,30 @@ on conflict (slug) do nothing;</pre>
                         showToast('Un compte existe déjà avec cette adresse e-mail. Connectez-vous.');
                         return;
                     }
-                    showEmailOtpStep('register', fullNameInput, email, 'signup');
+                    showEmailLinkStep('register', fullNameInput, email);
                     return;
                 } else {
+                    suppressAuthEvents = true;
                     const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    suppressAuthEvents = false;
                     if (error) {
                         showToast('Connexion impossible : ' + error.message);
                         return;
                     }
                     // Mot de passe valide : la session n'est ouverte qu'après saisie du code reçu par e-mail
+                    suppressAuthEvents = true;
                     await supabaseClient.auth.signOut();
+                    suppressAuthEvents = false;
+                    liveUser = null;
                     const { error: otpErr } = await supabaseClient.auth.signInWithOtp({
                         email,
-                        options: { shouldCreateUser: false }
+                        options: { shouldCreateUser: false, emailRedirectTo: getSiteRedirectUrl() }
                     });
                     if (otpErr) {
                         showToast('Envoi du code impossible : ' + otpErr.message);
                         return;
                     }
-                    showEmailOtpStep('login', fullNameInput, email, 'email');
+                    showEmailLinkStep('login', fullNameInput, email);
                     return;
                 }
                 return;
@@ -2147,6 +2171,8 @@ on conflict (slug) do nothing;</pre>
             const mfaInput = document.getElementById('mfa-code-input');
             if (authForm) authForm.classList.remove('hidden');
             if (mfaBox) mfaBox.classList.add('hidden');
+            const linkBox = document.getElementById('email-link-box');
+            if (linkBox) linkBox.classList.add('hidden');
             if (mfaQrBox) mfaQrBox.classList.add('hidden');
             if (mfaLocalHint) mfaLocalHint.classList.add('hidden');
             if (mfaInput) mfaInput.value = '';
@@ -2165,30 +2191,61 @@ on conflict (slug) do nothing;</pre>
             resetAuthModalState();
         }
 
-        // ---- Double authentification par code reçu par e-mail (Supabase) ----
-        function showEmailOtpStep(mode, fullNameInput, email, otpType) {
-            pendingMfaContext = { mode, fullName: fullNameInput, email, otpType, isLocal: false, isEmailOtp: true };
+        // ---- Double authentification par lien reçu par e-mail (Supabase) ----
+        let suppressAuthEvents = false;
+
+        function getSiteRedirectUrl() {
+            return window.location.origin + window.location.pathname;
+        }
+
+        function showEmailLinkStep(mode, fullNameInput, email) {
+            pendingMfaContext = { mode, fullName: fullNameInput, email, otpType: mode === 'register' ? 'signup' : 'email', isLocal: false, isEmailOtp: true };
             document.getElementById('auth-form').classList.add('hidden');
-            document.getElementById('mfa-step-box').classList.remove('hidden');
-            document.getElementById('mfa-enroll-qr-box').classList.add('hidden');
-            document.getElementById('mfa-local-hint').classList.add('hidden');
-            document.getElementById('mfa-instruction-text').textContent =
-                'Un code de vérification vient d’être envoyé à ' + email + '. Saisissez-le ci-dessous (pensez à vérifier les courriers indésirables).';
-            const cancelBtn = document.getElementById('mfa-cancel-btn');
-            if (cancelBtn) cancelBtn.textContent = 'Déconnexion';
-            const resendBtn = document.getElementById('mfa-resend-btn');
-            if (resendBtn) resendBtn.classList.remove('hidden');
-            document.getElementById('mfa-code-input').value = '';
-            document.getElementById('mfa-code-input').focus();
+            document.getElementById('mfa-step-box').classList.add('hidden');
+            document.getElementById('email-link-box').classList.remove('hidden');
+            document.getElementById('email-link-text').textContent =
+                'Un lien de connexion vient d’être envoyé à ' + email + '. Ouvrez votre e-mail et cliquez sur le lien pour accéder à votre espace (pensez à vérifier les courriers indésirables).';
         }
 
         async function resendEmailOtp() {
             const ctx = pendingMfaContext;
             if (!ctx || !ctx.isEmailOtp || !supabaseClient) return;
             const { error } = ctx.otpType === 'signup'
-                ? await supabaseClient.auth.resend({ type: 'signup', email: ctx.email })
-                : await supabaseClient.auth.signInWithOtp({ email: ctx.email, options: { shouldCreateUser: false } });
-            showToast(error ? 'Envoi impossible : ' + error.message : 'Nouveau code envoyé par e-mail.');
+                ? await supabaseClient.auth.resend({ type: 'signup', email: ctx.email, options: { emailRedirectTo: getSiteRedirectUrl() } })
+                : await supabaseClient.auth.signInWithOtp({ email: ctx.email, options: { shouldCreateUser: false, emailRedirectTo: getSiteRedirectUrl() } });
+            showToast(error ? 'Envoi impossible : ' + error.message : 'Nouveau lien envoyé par e-mail.');
+        }
+
+        // Création du profil apprenant après le premier clic sur le lien (sans écraser un profil existant)
+        async function ensureLiveProfile() {
+            if (!supabaseClient) return;
+            const { data } = await supabaseClient.auth.getSession();
+            const user = data && data.session ? data.session.user : null;
+            if (!user) return;
+            const meta = user.user_metadata || {};
+            await supabaseClient.from('profiles').upsert({
+                id: user.id,
+                full_name: meta.full_name || (user.email || 'apprenant').split('@')[0],
+                role: 'student'
+            }, { onConflict: 'id', ignoreDuplicates: true });
+        }
+
+        function watchLiveAuthEvents() {
+            if (!supabaseClient) return;
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                if (suppressAuthEvents) return;
+                if (event === 'SIGNED_IN' && session) {
+                    setTimeout(async () => {
+                        await ensureLiveProfile();
+                        await syncLiveSupabaseData();
+                        resetAuthModalState();
+                        closeAuthModal();
+                        updateGlobalUI();
+                        renderCatalog();
+                        showToast('Connexion réussie.');
+                    }, 0);
+                }
+            });
         }
 
         function generateSixDigitCode() {
@@ -2374,7 +2431,13 @@ on conflict (slug) do nothing;</pre>
             syncDemoBannerVisibility();
             initSupabaseIfConfigured();
             if (isLivePostgresActive()) {
+                await supabaseClient.auth.getSession();
+                await ensureLiveProfile();
                 await syncLiveSupabaseData();
+                watchLiveAuthEvents();
+                if (window.location.hash.indexOf('access_token') !== -1 || window.location.search.indexOf('code=') !== -1) {
+                    history.replaceState(null, '', window.location.pathname);
+                }
             }
             updateGlobalUI();
             renderCatalog();
