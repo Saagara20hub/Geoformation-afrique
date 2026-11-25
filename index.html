@@ -2268,6 +2268,13 @@ on conflict (slug) do nothing;</pre>
                         closeAuthModal();
                         updateGlobalUI();
                         renderCatalog();
+                        // Changement de compte : ne jamais laisser affichée une vue réservée à l'administrateur
+                        const nowUser = getCurrentUser();
+                        if (!nowUser || nowUser.role !== 'admin') {
+                            showSection('catalog');
+                        } else if (typeof renderAdminDashboard === 'function') {
+                            renderAdminDashboard();
+                        }
                         showToast('Connexion réussie.');
                     }, 0);
                 }
