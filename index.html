@@ -984,6 +984,26 @@ on conflict (slug) do nothing;</pre>
                 .replace(/'/g, '&#039;');
         }
 
+        // Correspondance entre les identifiants locaux du catalogue (ex. mod-qgis-fondamentaux) et les UUID de la table courses
+        let courseUuidByLocalId = {};
+        let courseLocalIdByUuid = {};
+
+        async function loadCourseIdMap() {
+            const { data, error } = await supabaseClient.from('courses').select('id, slug');
+            if (error || !data) return;
+            const uuidByLocal = {};
+            const localByUuid = {};
+            data.forEach(row => {
+                const local = INITIAL_COURSES.find(c => c.slug === row.slug);
+                if (local) {
+                    uuidByLocal[local.id] = row.id;
+                    localByUuid[row.id] = local.id;
+                }
+            });
+            courseUuidByLocalId = uuidByLocal;
+            courseLocalIdByUuid = localByUuid;
+        }
+
         async function syncLiveSupabaseData() {
             if (!supabaseClient) {
                 liveUser = null;
@@ -1000,6 +1020,8 @@ on conflict (slug) do nothing;</pre>
                     liveLessonsByCourse = {};
                     return;
                 }
+
+                await loadCourseIdMap();
 
                 const { data: profileData } = await supabaseClient
                     .from('profiles')
@@ -1024,7 +1046,7 @@ on conflict (slug) do nothing;</pre>
                     userId: r.user_id,
                     userFullName: r.profiles && r.profiles.full_name ? r.profiles.full_name : r.user_id,
                     userEmail: r.user_id === authUser.id ? authUser.email : '',
-                    courseId: r.course_id,
+                    courseId: courseLocalIdByUuid[r.course_id] || r.course_id,
                     status: r.status,
                     paymentMethod: r.payment_method || '',
                     paymentRef: r.payment_ref || '',
@@ -1039,8 +1061,9 @@ on conflict (slug) do nothing;</pre>
 
                 const grouped = {};
                 (lessonRows || []).forEach(lr => {
-                    if (!grouped[lr.course_id]) grouped[lr.course_id] = [];
-                    grouped[lr.course_id].push(lr.youtube_video_id || '');
+                    const localId = courseLocalIdByUuid[lr.course_id] || lr.course_id;
+                    if (!grouped[localId]) grouped[localId] = [];
+                    grouped[localId].push(lr.youtube_video_id || '');
                 });
                 liveLessonsByCourse = grouped;
             } catch (err) {
@@ -1766,11 +1789,8 @@ on conflict (slug) do nothing;</pre>
             const cleanId = (rawVal || '').trim();
             if (isLivePostgresActive()) {
                 try {
-                    const { data: courseRow } = await supabaseClient
-                        .from('courses')
-                        .select('id')
-                        .eq('slug', courseId)
-                        .single();
+                    if (!Object.keys(courseUuidByLocalId).length) await loadCourseIdMap();
+                    const courseRow = courseUuidByLocalId[courseId] ? { id: courseUuidByLocalId[courseId] } : null;
                     if (!courseRow) {
                         showToast('Cours introuvable dans la table PostgreSQL courses (exécutez le script INSERT).');
                         return;
@@ -2003,25 +2023,27 @@ on conflict (slug) do nothing;</pre>
 
             if (isLivePostgresActive()) {
                 try {
-                    const { data: courseRow } = await supabaseClient
-                        .from('courses')
-                        .select('id')
-                        .eq('slug', courseId)
-                        .single();
-                    const dbCourseId = courseRow ? courseRow.id : courseId;
+                    if (!Object.keys(courseUuidByLocalId).length) await loadCourseIdMap();
+                    const dbCourseId = courseUuidByLocalId[courseId];
+                    if (!dbCourseId) {
+                        showToast('Cours introuvable dans la base (table courses).');
+                        return;
+                    }
 
                     const { error } = await supabaseClient
                         .from('enrollments')
-                        .upsert({
+                        .insert({
                             user_id: user.id,
                             course_id: dbCourseId,
                             status: 'pending',
                             payment_method: method,
                             payment_ref: ref
-                        }, { onConflict: 'user_id,course_id' });
+                        });
 
                     if (error) {
-                        showToast('Erreur demande PostgreSQL : ' + error.message);
+                        showToast(error.code === '23505'
+                            ? 'Vous avez déjà une demande pour cette formation.'
+                            : 'Erreur demande PostgreSQL : ' + error.message);
                         return;
                     }
                     await syncLiveSupabaseData();
