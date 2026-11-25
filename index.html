@@ -1036,10 +1036,14 @@ on conflict (slug) do nothing;</pre>
                     role: (profileData && profileData.role) || 'student'
                 };
 
-                const { data: enrRows } = await supabaseClient
+                const { data: enrRows, error: enrErr } = await supabaseClient
                     .from('enrollments')
-                    .select('id, user_id, course_id, status, payment_method, payment_ref, validated_at, created_at, profiles(full_name)')
+                    .select('id, user_id, course_id, status, payment_method, payment_ref, validated_at, created_at, profiles!enrollments_user_id_fkey(full_name)')
                     .order('created_at', { ascending: false });
+                if (enrErr) {
+                    console.error('Erreur lecture inscriptions:', enrErr);
+                    showToast('Lecture des inscriptions impossible : ' + enrErr.message);
+                }
 
                 liveEnrollments = (enrRows || []).map(r => ({
                     id: r.id,
