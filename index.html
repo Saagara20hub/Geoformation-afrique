@@ -2179,6 +2179,12 @@ on conflict (slug) do nothing;</pre>
                     : null;
 
                 if (!verifiedTotp) {
+                    // Nettoyage des facteurs TOTP jamais validés (tentatives précédentes interrompues)
+                    const staleFactors = (factorsData && factorsData.all ? factorsData.all : [])
+                        .filter(f => f.factor_type === 'totp' && f.status !== 'verified');
+                    for (const stale of staleFactors) {
+                        await supabaseClient.auth.mfa.unenroll({ factorId: stale.id });
+                    }
                     // Enrôlement TOTP automatique lors de la création de compte ou première connexion sans facteur actif
                     const { data: enrollData, error: enrollErr } = await supabaseClient.auth.mfa.enroll({
                         factorType: 'totp',
