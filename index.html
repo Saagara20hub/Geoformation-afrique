@@ -1,0 +1,2333 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GéoFormation Afrique — Formations SIG, Télédétection & Environnement</title>
+    <!-- Chargement de Tailwind CSS -->
+    <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=7Bt1kxsyXZM4vfK5bvTPjpN7yZsfzNZ2KrQ5iHERdqNZsYmbxfguhDXGi-C_qcZ2Iu6G_ClJiFcv5J2KTGk9kYtk7Qvaur_i1ktKsfTw1V11IZoKp4W3Ds2ZbYZVJzhwkXf_uoauSdB0_sk4Bdw6t6fYDSkSyiv51gNoWx8KsaWndlTPl-kuDfVUmDxe5KHyIqrFuueu38ZDl0uXaWsdobvhPUCVUXXYETKnJ4qT0iUpdnZrwLDrDOwt8ZbyeX75Hqe2yxP25979SL8dvf9AgRtE7WiWGm-71SkuWfbnt31UEg4dxnE2zQpzYCJ8RzEx" charset="UTF-8"></script><script src="https://cdn.tailwindcss.com"></script>
+    <!-- Client officiel Supabase (PostgreSQL managé) pour la connexion optionnelle en production -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Polices sobres et éditoriales -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+                        serif: ['"Fraunces"', 'Georgia', 'serif'],
+                    },
+                    colors: {
+                        paper: '#FAF9F6',
+                        sand: '#F3F0E8',
+                        forest: {
+                            50: '#F2F6F4',
+                            100: '#DFEAE4',
+                            700: '#274C3E',
+                            800: '#1E3A2F',
+                            900: '#152A22',
+                            950: '#0D1B15',
+                        },
+                        ochre: {
+                            50: '#FEF7EE',
+                            100: '#FDECD6',
+                            600: '#C86011',
+                            700: '#B45309',
+                            800: '#92400E',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #FAF9F6;
+            color: #1C1917;
+        }
+        /* Filigrane dynamique discret par-dessus le lecteur vidéo sécurisé */
+        @keyframes watermarkFloat {
+            0%   { top: 14%; left: 10%; opacity: 0.42; }
+            25%  { top: 72%; left: 58%; opacity: 0.35; }
+            50%  { top: 24%; left: 62%; opacity: 0.45; }
+            75%  { top: 68%; left: 14%; opacity: 0.35; }
+            100% { top: 14%; left: 10%; opacity: 0.42; }
+        }
+        .video-watermark {
+            animation: watermarkFloat 28s ease-in-out infinite;
+            pointer-events: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-forest-800 selection:text-white">
+
+    <!-- ==================== 1. BANDEAU DE SIMULATION / DÉMO (MASQUÉ PAR DÉFAUT) ==================== -->
+    <div id="demo-role-banner" style="display: none;" class="bg-forest-950 text-stone-200 text-xs py-2.5 px-4 border-b border-forest-800">
+        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-2.5">
+            <div class="flex items-center gap-2">
+                <span class="inline-block w-2 h-2 rounded-full bg-amber-400"></span>
+                <span id="runtime-mode-badge" class="px-2 py-0.5 rounded bg-stone-900 text-amber-300 font-medium border border-stone-700">
+                    Mode Simulation Locale
+                </span>
+                <span class="text-stone-400">Basculer rapidement de profil :</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button" onclick="quickSwitchAccount('guest')" class="px-2.5 py-1 rounded border border-stone-700 hover:bg-stone-800 text-stone-200 transition">
+                    Visiteur
+                </button>
+                <button type="button" onclick="quickSwitchAccount('student_new')" class="px-2.5 py-1 rounded border border-amber-600/60 bg-amber-950/50 hover:bg-amber-900/60 text-amber-200 transition">
+                    Nouvel étudiant (0 accès)
+                </button>
+                <button type="button" onclick="quickSwitchAccount('student_active')" class="px-2.5 py-1 rounded border border-stone-700 hover:bg-stone-800 text-stone-200 transition">
+                    Étudiant validé (Moussa T.)
+                </button>
+                <button type="button" onclick="quickSwitchAccount('admin')" class="px-2.5 py-1 rounded bg-ochre-700 hover:bg-ochre-600 text-white font-medium transition">
+                    Administrateur
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== NOTIFICATION / TOAST MESSAGE ==================== -->
+    <div id="toast-box" class="fixed bottom-5 right-5 z-50 hidden max-w-sm bg-forest-900 text-white px-4 py-3.5 rounded-xl shadow-xl border border-forest-700 text-sm flex items-start gap-3">
+        <span id="toast-icon" class="mt-0.5 text-amber-300 font-bold">●</span>
+        <div class="flex-1">
+            <p id="toast-text" class="leading-snug"></p>
+        </div>
+        <button type="button" onclick="hideToast()" class="text-stone-400 hover:text-white text-xs ml-2">Fermer</button>
+    </div>
+
+    <!-- ==================== 2. EN-TÊTE ET NAVIGATION PRINCIPALE ==================== -->
+    <header class="sticky top-0 z-40 bg-paper/95 backdrop-blur border-b border-stone-200/90">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-18 py-3.5 gap-4">
+                <!-- Identité de la plateforme -->
+                <a href="#top" onclick="showSection('catalog')" class="flex items-center gap-3 group">
+                    <div class="w-10 h-10 rounded-xl bg-forest-800 text-paper flex items-center justify-center shadow-sm group-hover:bg-forest-900 transition">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3V6z" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M9 3v15M15 6v15" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <span class="font-serif text-lg sm:text-xl font-semibold tracking-tight text-forest-900 block leading-none">
+                            GéoFormation <span class="text-ochre-700">Afrique</span>
+                        </span>
+                        <span class="text-[11px] text-stone-500 tracking-wide">SIG · Télédétection · Environnement</span>
+                    </div>
+                </a>
+
+                <!-- Navigation principale (Desktop) -->
+                <nav class="hidden lg:flex items-center gap-1 text-sm font-medium text-stone-700">
+                    <button type="button" id="nav-catalog" onclick="showSection('catalog')" class="nav-btn px-3.5 py-2 rounded-lg bg-forest-50 text-forest-900 font-semibold transition">
+                        Catalogue
+                    </button>
+                    <button type="button" id="nav-modalities" onclick="showSection('modalities')" class="nav-btn px-3.5 py-2 rounded-lg hover:bg-stone-200/60 transition">
+                        Parcours &amp; Modalités
+                    </button>
+                    <button type="button" id="nav-student" onclick="showSection('student')" class="nav-btn px-3.5 py-2 rounded-lg hover:bg-stone-200/60 transition flex items-center gap-1.5">
+                        <span>Espace Étudiant</span>
+                        <span id="student-active-badge" class="hidden text-[11px] px-1.5 py-0.5 rounded-full bg-forest-800 text-white">0</span>
+                    </button>
+                    <button type="button" id="nav-admin" onclick="showSection('admin')" class="hidden nav-btn px-3.5 py-2 rounded-lg hover:bg-stone-200/60 transition flex items-center gap-1.5">
+                        <span>Administration</span>
+                        <span id="admin-pending-badge" class="hidden text-[11px] px-1.5 py-0.5 rounded-full bg-ochre-700 text-white">0</span>
+                    </button>
+                </nav>
+
+                <!-- Actions droite : Config PostgreSQL discrète + Compte -->
+                <div class="hidden sm:flex items-center gap-2.5">
+                    <button type="button" id="header-pg-btn" onclick="openPostgresModal()" title="Configuration PostgreSQL / PostGIS (Supabase)" class="hidden inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-stone-300 bg-white hover:bg-stone-100 text-stone-700 text-xs font-medium transition">
+                        <span id="pg-status-dot" class="w-2 h-2 rounded-full bg-stone-400"></span>
+                        <span>PostgreSQL</span>
+                    </button>
+
+                    <div id="header-auth-area">
+                        <!-- Rendu dynamiquement selon l'utilisateur connecté -->
+                    </div>
+                </div>
+
+                <!-- Bouton menu mobile -->
+                <button type="button" onclick="toggleMobileMenu()" class="lg:hidden p-2.5 rounded-lg border border-stone-300 bg-white text-stone-700" aria-label="Ouvrir le menu">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Menu mobile déroulant -->
+            <div id="mobile-menu" class="hidden lg:hidden pb-4 pt-2 border-t border-stone-200 space-y-2">
+                <button type="button" onclick="showSection('catalog'); toggleMobileMenu(false)" class="block w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-stone-200/60">Catalogue des formations</button>
+                <button type="button" onclick="showSection('modalities'); toggleMobileMenu(false)" class="block w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-stone-200/60">Parcours &amp; Modalités</button>
+                <button type="button" onclick="showSection('student'); toggleMobileMenu(false)" class="block w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-stone-200/60">Espace Étudiant</button>
+                <button type="button" id="mobile-nav-admin" onclick="showSection('admin'); toggleMobileMenu(false)" class="hidden block w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-stone-200/60">Administration</button>
+                <div class="pt-2 border-t border-stone-200 flex flex-wrap items-center gap-2 px-1">
+                    <button type="button" id="mobile-pg-btn" onclick="openPostgresModal(); toggleMobileMenu(false)" class="hidden px-3 py-2 rounded-lg border border-stone-300 bg-white text-xs font-medium text-stone-700">
+                        Configuration PostgreSQL
+                    </button>
+                    <div id="mobile-auth-area"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==================== CONTENU PRINCIPAL ==================== -->
+    <main id="top" class="flex-1">
+
+        <!-- ==================== VUE 1 : CATALOGUE DES FORMATIONS ==================== -->
+        <section id="view-catalog" class="block">
+            <!-- En-tête éditorial sobre -->
+            <div class="border-b border-stone-200/80 bg-sand/70">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                        <div class="lg:col-span-8 space-y-4">
+                            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-forest-50 border border-forest-800/15 text-forest-800 text-xs font-semibold">
+                                <span>Formations pratiques · Données réelles d'Afrique de l'Ouest &amp; Centrale</span>
+                            </div>
+                            <h1 class="font-serif text-3xl sm:text-4xl lg:text-[42px] font-semibold text-forest-950 leading-tight">
+                                Maîtrisez les outils SIG, la collecte terrain et l'analyse environnementale.
+                            </h1>
+                            <p class="text-stone-600 text-base sm:text-lg max-w-2xl leading-relaxed">
+                                Des modules ciblés, des packs thématiques et des parcours métiers conçus pour les chargés d'études, agents de terrain, étudiants et équipes de projets environnementaux.
+                            </p>
+                            <div class="pt-2 flex flex-wrap items-center gap-3">
+                                <a href="#catalogue-liste" class="px-5 py-3 rounded-xl bg-forest-800 hover:bg-forest-900 text-white text-sm font-semibold shadow-sm transition">
+                                    Explorer les 9 formations
+                                </a>
+                                <button type="button" onclick="showSection('student')" class="px-5 py-3 rounded-xl bg-white hover:bg-stone-100 text-forest-900 border border-stone-300 text-sm font-semibold transition">
+                                    Accéder à mes cours inscrits
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Encadré fonctionnement des accès -->
+                        <div class="lg:col-span-4 bg-white rounded-2xl p-6 border border-stone-200/90 shadow-sm space-y-3.5">
+                            <h2 class="font-serif text-lg font-semibold text-forest-900">Comment fonctionnent les accès ?</h2>
+                            <ol class="space-y-2.5 text-sm text-stone-600">
+                                <li class="flex items-start gap-2.5">
+                                    <span class="w-5 h-5 rounded-full bg-forest-50 text-forest-800 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">1</span>
+                                    <span>Créez votre compte apprenant et choisissez votre module, pack ou parcours.</span>
+                                </li>
+                                <li class="flex items-start gap-2.5">
+                                    <span class="w-5 h-5 rounded-full bg-forest-50 text-forest-800 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">2</span>
+                                    <span>Soumettez votre demande d'accès et transmettez votre référence de règlement.</span>
+                                </li>
+                                <li class="flex items-start gap-2.5">
+                                    <span class="w-5 h-5 rounded-full bg-ochre-50 text-ochre-700 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">3</span>
+                                    <span>Dès validation par l'administrateur, vos leçons vidéo privées et jeux de données se débloquent.</span>
+                                </li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Zone de filtres et grille du catalogue -->
+            <div id="catalogue-liste" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+                <!-- Barre de filtres -->
+                <div class="bg-white p-4 sm:p-5 rounded-2xl border border-stone-200 shadow-sm mb-8 space-y-4">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <!-- Filtres par Format (Modules / Packs complets / Parcours métiers) -->
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-stone-400 mr-1">Format :</span>
+                            <button type="button" onclick="setFormatFilter('all')" data-format="all" class="format-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-forest-800 text-white transition">
+                                Tous (9)
+                            </button>
+                            <button type="button" onclick="setFormatFilter('Module')" data-format="Module" class="format-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-stone-100 text-stone-700 hover:bg-stone-200 transition">
+                                Modules (5)
+                            </button>
+                            <button type="button" onclick="setFormatFilter('Pack complet')" data-format="Pack complet" class="format-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-stone-100 text-stone-700 hover:bg-stone-200 transition">
+                                Packs complets (2)
+                            </button>
+                            <button type="button" onclick="setFormatFilter('Parcours métier')" data-format="Parcours métier" class="format-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-stone-100 text-stone-700 hover:bg-stone-200 transition">
+                                Parcours métiers (2)
+                            </button>
+                        </div>
+
+                        <!-- Recherche instantanée -->
+                        <div class="relative w-full md:w-72">
+                            <input type="text" id="catalog-search" oninput="handleSearchInput(this.value)" placeholder="Rechercher QGIS, Kobo, PostGIS..." class="w-full pl-9 pr-3.5 py-2 rounded-xl border border-stone-300 bg-paper text-sm focus:outline-none focus:border-forest-800">
+                            <svg class="w-4 h-4 text-stone-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Filtres par Thématique -->
+                    <div class="flex flex-wrap items-center gap-2 pt-3 border-t border-stone-100">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-stone-400 mr-1">Thématique :</span>
+                        <button type="button" onclick="setCategoryFilter('all')" data-cat="all" class="cat-pill px-3 py-1 rounded-full text-xs font-medium bg-ochre-700 text-white transition">
+                            Toutes les thématiques
+                        </button>
+                        <button type="button" onclick="setCategoryFilter('SIG & Cartographie')" data-cat="SIG & Cartographie" class="cat-pill px-3 py-1 rounded-full text-xs font-medium bg-stone-100 text-stone-700 hover:bg-stone-200 transition">
+                            SIG &amp; Cartographie
+                        </button>
+                        <button type="button" onclick="setCategoryFilter('Collecte & Terrain')" data-cat="Collecte & Terrain" class="cat-pill px-3 py-1 rounded-full text-xs font-medium bg-stone-100 text-stone-700 hover:bg-stone-200 transition">
+                            Collecte &amp; Terrain
+                        </button>
+                        <button type="button" onclick="setCategoryFilter('Télédétection & Environnement')" data-cat="Télédétection & Environnement" class="cat-pill px-3 py-1 rounded-full text-xs font-medium bg-stone-100 text-stone-700 hover:bg-stone-200 transition">
+                            Télédétection &amp; Environnement
+                        </button>
+                        <button type="button" onclick="setCategoryFilter('Webmapping & Géodonnées')" data-cat="Webmapping & Géodonnées" class="cat-pill px-3 py-1 rounded-full text-xs font-medium bg-stone-100 text-stone-700 hover:bg-stone-200 transition">
+                            Webmapping &amp; Géodonnées
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Résumé du nombre de résultats -->
+                <div class="flex items-center justify-between mb-5">
+                    <p id="catalog-count-label" class="text-sm text-stone-600 font-medium">9 formations affichées</p>
+                    <button type="button" onclick="resetCatalogFilters()" class="text-xs text-ochre-700 hover:underline font-medium">Réinitialiser les filtres</button>
+                </div>
+
+                <!-- Grille des cartes de formations -->
+                <div id="catalog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Généré dynamiquement en JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== VUE 2 : DÉTAIL D'UNE FORMATION & LECTEUR SÉCURISÉ ==================== -->
+        <section id="view-course-detail" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+            <button type="button" onclick="showSection('catalog')" class="inline-flex items-center gap-2 text-sm font-medium text-stone-600 hover:text-forest-900 mb-6 transition">
+                <span>&larr; Retour au catalogue des formations</span>
+            </button>
+
+            <div id="course-detail-container">
+                <!-- Généré dynamiquement selon le cours sélectionné et les droits de l'utilisateur -->
+            </div>
+        </section>
+
+        <!-- ==================== VUE 3 : PARCOURS & MODALITÉS ==================== -->
+        <section id="view-modalities" class="hidden max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-10">
+            <div class="max-w-3xl space-y-3">
+                <span class="text-xs font-semibold uppercase tracking-wider text-ochre-700">Organisation pédagogique</span>
+                <h1 class="font-serif text-3xl sm:text-4xl font-semibold text-forest-950">Trois formats adaptés à votre rythme et vos objectifs terrain</h1>
+                <p class="text-stone-600 text-base leading-relaxed">
+                    Chaque formation combine des capsules vidéo pratiques (hébergées en accès restreint), des jeux de données géographiques réels et un livrable concret vérifiable.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-3">
+                    <span class="inline-block px-3 py-1 rounded-full bg-forest-50 text-forest-800 text-xs font-semibold">Format 1 · 3 à 6 heures</span>
+                    <h2 class="font-serif text-xl font-semibold text-forest-900">Les Modules ciblés</h2>
+                    <p class="text-sm text-stone-600 leading-relaxed">
+                        Idéal pour monter rapidement en compétence sur un logiciel ou un protocole précis : QGIS, KoboToolbox/QField, GPS terrain, Google Earth Engine ou PostGIS.
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-3">
+                    <span class="inline-block px-3 py-1 rounded-full bg-ochre-50 text-ochre-700 text-xs font-semibold">Format 2 · 10 à 18 heures</span>
+                    <h2 class="font-serif text-xl font-semibold text-forest-900">Les Packs complets</h2>
+                    <p class="text-sm text-stone-600 leading-relaxed">
+                        Regroupent plusieurs modules complémentaires autour d'une problématique complète : surveillance de la dégradation des terres ou chaîne complète enquête terrain → base de données → cartes.
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-sm space-y-3">
+                    <span class="inline-block px-3 py-1 rounded-full bg-stone-800 text-white text-xs font-semibold">Format 3 · 25 heures et +</span>
+                    <h2 class="font-serif text-xl font-semibold text-forest-900">Les Parcours métiers</h2>
+                    <p class="text-sm text-stone-600 leading-relaxed">
+                        Cursus structurés avec projet final complet pour viser un poste opérationnel de Technicien SIG ou d'Analyste Géospatial &amp; Monitoring Environnemental.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-forest-900 text-paper rounded-2xl p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div class="space-y-2 max-w-2xl">
+                    <h3 class="font-serif text-2xl font-semibold">Protection des contenus et validation nominative</h3>
+                    <p class="text-stone-300 text-sm leading-relaxed">
+                        Les vidéos de cours sont diffusées en mode <strong>Non répertorié</strong> et ne sont accessibles qu'aux comptes apprenants dont l'inscription est validée (<code class="text-amber-300">status = 'active'</code>) dans la base PostgreSQL par l'administrateur.
+                    </p>
+                </div>
+                <button type="button" onclick="showSection('catalog')" class="px-5 py-3 rounded-xl bg-ochre-700 hover:bg-ochre-600 text-white text-sm font-semibold shrink-0 transition">
+                    Choisir une formation
+                </button>
+            </div>
+        </section>
+
+        <!-- ==================== VUE 4 : ESPACE ÉTUDIANT ==================== -->
+        <section id="view-student" class="hidden max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div id="student-dashboard-container">
+                <!-- Généré dynamiquement selon le profil connecté -->
+            </div>
+        </section>
+
+        <!-- ==================== VUE 5 : ESPACE ADMINISTRATEUR ==================== -->
+        <section id="view-admin" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div id="admin-dashboard-container">
+                <!-- Généré dynamiquement : validation des inscriptions & gestion des vidéos -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ==================== PIED DE PAGE ==================== -->
+    <footer class="bg-forest-950 text-stone-300 border-t border-forest-900 mt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div class="space-y-1">
+                <p class="font-serif text-lg font-semibold text-white">GéoFormation <span class="text-amber-400">Afrique</span></p>
+                <p class="text-xs text-stone-400">Plateforme de formation SIG, Télédétection, Collecte Terrain &amp; Environnement.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-4 text-xs text-stone-400">
+                <button type="button" onclick="showSection('catalog')" class="hover:text-white transition">Catalogue</button>
+                <button type="button" onclick="showSection('modalities')" class="hover:text-white transition">Modalités</button>
+                <button type="button" id="footer-pg-btn" onclick="openPostgresModal()" class="hidden hover:text-white transition">Architecture PostgreSQL / PostGIS</button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ==================== MODALE : CONNEXION / CRÉATION DE COMPTE ==================== -->
+    <div id="auth-modal" class="fixed inset-0 z-50 hidden bg-stone-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 sm:p-7 border border-stone-200 shadow-2xl space-y-5">
+            <div class="flex items-center justify-between">
+                <h2 id="auth-modal-title" class="font-serif text-xl font-semibold text-forest-950">Connexion à votre espace</h2>
+                <button type="button" onclick="closeAuthModal()" class="text-stone-400 hover:text-stone-700 text-sm font-medium">Fermer</button>
+            </div>
+
+            <!-- Onglets Connexion / Inscription -->
+            <div class="grid grid-cols-2 gap-1 p-1 bg-stone-100 rounded-xl text-xs font-semibold">
+                <button type="button" id="tab-login" onclick="switchAuthTab('login')" class="py-2 rounded-lg bg-white text-forest-900 shadow-xs">Se connecter</button>
+                <button type="button" id="tab-register" onclick="switchAuthTab('register')" class="py-2 rounded-lg text-stone-600">Créer un compte</button>
+            </div>
+
+            <form id="auth-form" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                <div id="register-name-group" class="hidden">
+                    <label class="block text-xs font-semibold text-stone-700 mb-1">Nom et prénom complets</label>
+                    <input type="text" id="auth-fullname" placeholder="Ex : Aminata Diallo" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:border-forest-800">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-stone-700 mb-1">Adresse e-mail</label>
+                    <input type="email" id="auth-email" required placeholder="prenom.nom@exemple.org" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:border-forest-800">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-stone-700 mb-1">Mot de passe</label>
+                    <input type="password" id="auth-password" required placeholder="••••••••" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:border-forest-800">
+                </div>
+
+                <div class="bg-forest-50 border border-forest-800/15 rounded-xl p-3 text-xs text-forest-900">
+                    Tout nouveau compte créé démarre avec <strong>0 cours débloqué</strong>. L'accès aux vidéos est activé uniquement après validation de votre inscription par l'administrateur.
+                </div>
+
+                <button type="submit" id="auth-submit-btn" class="w-full py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-white text-sm font-semibold transition">
+                    Continuer
+                </button>
+            </form>
+
+            <!-- Étape MFA (TOTP Authenticator ou Code de vérification à 6 chiffres) -->
+            <div id="mfa-step-box" class="hidden pt-4 border-t border-stone-200 space-y-4">
+                <div class="bg-ochre-50 border border-ochre-700/20 rounded-xl p-3.5 text-xs text-stone-800 space-y-1.5">
+                    <p class="font-semibold text-ochre-800">Vérification MFA (Double authentification) requise</p>
+                    <p id="mfa-instruction-text" class="text-stone-600 leading-relaxed">
+                        Saisissez le code à 6 chiffres généré par votre application d'authentification (Google Authenticator / Authy) ou le code de sécurité transmis.
+                    </p>
+                    <p id="mfa-local-hint" class="hidden font-mono text-[11px] bg-white px-2.5 py-1.5 rounded border border-ochre-700/20 text-forest-950">
+                        Code démo local : <strong id="mfa-expected-code">------</strong>
+                    </p>
+                </div>
+
+                <div id="mfa-enroll-qr-box" class="hidden bg-sand p-3.5 rounded-xl border border-stone-200 space-y-2 text-xs">
+                    <p class="font-semibold text-forest-950">Configuration initiale de votre application TOTP :</p>
+                    <p class="text-stone-600">Ajoutez ce compte dans votre application d'authentification avec la clé secrète ci-dessous, puis saisissez le code à 6 chiffres :</p>
+                    <code id="mfa-totp-secret" class="block bg-white px-2.5 py-1.5 rounded border border-stone-300 font-mono text-[11px] text-forest-950 break-all"></code>
+                </div>
+
+                <form id="mfa-verify-form" onsubmit="handleMfaVerifySubmit(event)" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-stone-700 mb-1">Code MFA à 6 chiffres</label>
+                        <input type="text" id="mfa-code-input" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required placeholder="000000"
+                            class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-center text-base font-mono tracking-[0.35em] focus:outline-none focus:border-forest-800">
+                    </div>
+                    <div class="flex items-center justify-between gap-2">
+                        <button type="button" onclick="cancelMfaStep()" class="px-3.5 py-2 rounded-xl border border-stone-300 text-xs font-medium text-stone-700 hover:bg-stone-50">
+                            Retour
+                        </button>
+                        <button type="submit" class="flex-1 py-2.5 rounded-xl bg-ochre-700 hover:bg-ochre-600 text-white text-xs font-semibold transition">
+                            Valider le code MFA
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+
+        </div>
+    </div>
+
+    <!-- ==================== MODALE : DEMANDE D'ACCÈS À UNE FORMATION ==================== -->
+    <div id="enroll-modal" class="fixed inset-0 z-50 hidden bg-stone-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 sm:p-7 border border-stone-200 shadow-2xl space-y-5">
+            <div class="flex items-center justify-between">
+                <h2 class="font-serif text-xl font-semibold text-forest-950">Demander l'accès à la formation</h2>
+                <button type="button" onclick="closeEnrollModal()" class="text-stone-400 hover:text-stone-700 text-sm">Fermer</button>
+            </div>
+
+            <div id="enroll-course-summary" class="bg-sand rounded-xl p-4 border border-stone-200/80 space-y-1">
+                <!-- Rempli dynamiquement -->
+            </div>
+
+            <form onsubmit="submitEnrollmentRequest(event)" class="space-y-4">
+                <input type="hidden" id="enroll-course-id">
+                <div>
+                    <label class="block text-xs font-semibold text-stone-700 mb-1">Moyen de règlement utilisé</label>
+                    <select id="enroll-payment-method" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm bg-white focus:outline-none focus:border-forest-800">
+                        <option value="Orange Money / Moov Money">Mobile Money (Orange Money / Moov / Wave)</option>
+                        <option value="Virement bancaire">Virement bancaire</option>
+                        <option value="Espèces / Reçu secrétariat">Règlement sur place / Reçu secrétariat</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-stone-700 mb-1">Référence de transaction ou numéro de reçu</label>
+                    <input type="text" id="enroll-payment-ref" required placeholder="Ex : OM-2026-84920 ou Reçu #104" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm focus:outline-none focus:border-forest-800">
+                    <p class="text-[11px] text-stone-500 mt-1">Cette référence sera vérifiée par l'administrateur avant l'activation (<code class="text-forest-800">status = 'active'</code>).</p>
+                </div>
+
+                <div class="flex items-center justify-end gap-2.5 pt-2">
+                    <button type="button" onclick="closeEnrollModal()" class="px-4 py-2.5 rounded-xl border border-stone-300 text-sm font-medium text-stone-700 hover:bg-stone-50">
+                        Annuler
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 rounded-xl bg-ochre-700 hover:bg-ochre-600 text-white text-sm font-semibold transition">
+                        Enregistrer ma demande
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== MODALE : CONFIGURATION POSTGRESQL / POSTGIS (SUPABASE) ==================== -->
+    <div id="postgres-modal" class="fixed inset-0 z-50 hidden bg-stone-950/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-3xl w-full p-6 sm:p-7 border border-stone-200 shadow-2xl space-y-5 my-8">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-ochre-700">Base de données &amp; Sécurité RLS</span>
+                    <h2 class="font-serif text-xl sm:text-2xl font-semibold text-forest-950">Connexion PostgreSQL / PostGIS (Supabase)</h2>
+                </div>
+                <button type="button" onclick="closePostgresModal()" class="text-stone-400 hover:text-stone-700 text-sm font-medium">Fermer</button>
+            </div>
+
+            <p class="text-sm text-stone-600 leading-relaxed">
+                Renseignez l'URL et la clé publique (<em>anon key</em>) de votre projet PostgreSQL Supabase pour basculer de la simulation locale vers votre base réelle. Les politiques <strong>Row Level Security (RLS)</strong> ci-dessous garantissent que les identifiants vidéo YouTube non répertoriés ne sont jamais renvoyés aux utilisateurs non validés.
+            </p>
+
+            <!-- Formulaire de connexion -->
+            <form onsubmit="savePostgresConfig(event)" class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-sand p-4 rounded-xl border border-stone-200">
+                <div>
+                    <label class="block text-xs font-semibold text-stone-700 mb-1">URL du projet Supabase (PostgreSQL)</label>
+                    <input type="url" id="pg-url-input" placeholder="https://votre-projet.supabase.co" class="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-xs font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-stone-700 mb-1">Clé publique (anon / publishable key)</label>
+                    <input type="text" id="pg-key-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full px-3 py-2 rounded-lg border border-stone-300 bg-white text-xs font-mono">
+                </div>
+                <div class="sm:col-span-2 flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <span id="pg-modal-status" class="text-xs text-stone-600">Statut actuel : Simulation locale (aucune base externe connectée)</span>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="disconnectPostgres()" class="px-3 py-1.5 rounded-lg border border-stone-300 bg-white text-xs font-medium text-stone-700 hover:bg-stone-50">
+                            Revenir en local
+                        </button>
+                        <button type="submit" class="px-4 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-900 text-white text-xs font-semibold">
+                            Enregistrer &amp; Connecter
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Schéma SQL complet prêt à copier -->
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-semibold uppercase tracking-wider text-stone-700">Schéma SQL PostgreSQL + PostGIS + Politiques RLS</h3>
+                    <button type="button" onclick="copySqlSchema()" class="px-3 py-1 rounded-lg bg-forest-50 hover:bg-forest-100 text-forest-900 border border-forest-800/20 text-xs font-semibold transition">
+                        Copier le script SQL
+                    </button>
+                </div>
+                <pre id="sql-schema-code" class="bg-forest-950 text-stone-200 p-4 rounded-xl text-[11px] font-mono overflow-x-auto max-h-64 leading-relaxed border border-forest-800">-- Extension PostGIS pour les zones d'étude SIG / Environnement
+create extension if not exists postgis;
+
+-- 1. Profils apprenants et administrateurs
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  full_name text not null,
+  role text not null default 'student' check (role in ('student', 'admin')),
+  created_at timestamptz not null default now()
+);
+
+-- 2. Catalogue des formations (Modules, Packs complets, Parcours métiers)
+create table if not exists public.courses (
+  id uuid primary key default gen_random_uuid(),
+  slug text unique not null,
+  format text not null check (format in ('Module', 'Pack complet', 'Parcours métier')),
+  title text not null,
+  category text not null,
+  level text not null,
+  duration_hours integer not null default 4,
+  price_fcfa integer not null default 0,
+  deliverable text not null,
+  summary text not null,
+  study_area geometry(Polygon, 4326),
+  is_published boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+-- 3. Leçons et vidéos YouTube en mode "Non répertoriée" (protégées par RLS)
+create table if not exists public.course_lessons (
+  id uuid primary key default gen_random_uuid(),
+  course_id uuid not null references public.courses(id) on delete cascade,
+  title text not null,
+  position integer not null default 1,
+  duration_label text not null default '18 min',
+  youtube_video_id text not null
+);
+
+-- 4. Inscriptions et validations par l'administrateur
+create table if not exists public.enrollments (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  course_id uuid not null references public.courses(id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'active', 'revoked')),
+  payment_method text,
+  payment_ref text,
+  validated_by uuid references public.profiles(id),
+  validated_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (user_id, course_id)
+);
+
+-- Activation du Row Level Security (RLS)
+alter table public.profiles enable row level security;
+alter table public.courses enable row level security;
+alter table public.course_lessons enable row level security;
+alter table public.enrollments enable row level security;
+
+create or replace function public.is_admin()
+returns boolean language sql security definer set search_path = public as $$
+  select exists (select 1 from public.profiles where id = auth.uid() and role = 'admin');
+$$;
+
+-- Politiques : profils
+create policy "Lecture profil personnel ou admin" on public.profiles
+  for select using (id = auth.uid() or public.is_admin());
+create policy "Insertion profil étudiant" on public.profiles
+  for insert with check (id = auth.uid() and role = 'student');
+
+-- Politiques : catalogue public
+create policy "Catalogue publié visible par tous" on public.courses
+  for select using (is_published = true or public.is_admin());
+create policy "Écriture catalogue réservée admin" on public.courses
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- Politiques : leçons vidéo (ID YouTube renvoyé UNIQUEMENT si status = 'active')
+create policy "Accès leçons si inscription active" on public.course_lessons
+  for select using (
+    public.is_admin() or exists (
+      select 1 from public.enrollments e
+      where e.course_id = course_lessons.course_id
+        and e.user_id = auth.uid()
+        and e.status = 'active'
+    )
+  );
+create policy "Gestion leçons réservée admin" on public.course_lessons
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- Politiques : inscriptions
+create policy "Lecture inscriptions" on public.enrollments
+  for select using (user_id = auth.uid() or public.is_admin());
+create policy "Demande inscription étudiant" on public.enrollments
+  for insert with check (user_id = auth.uid() and status = 'pending');
+create policy "Validation admin" on public.enrollments
+  for update using (public.is_admin()) with check (public.is_admin());
+
+-- 5. Exemple d'insertion des cours (à adapter avec vos vrais IDs YouTube "Non répertoriée" dans course_lessons)
+insert into public.courses (slug, format, title, category, level, duration_hours, price_fcfa, deliverable, summary)
+values
+  ('fondamentaux-sig-cartographie-qgis', 'Module', 'Fondamentaux SIG & Cartographie thématique sous QGIS', 'SIG & Cartographie', 'Débutant', 6, 25000, 'Carte de synthèse communale + Atlas d’impression PDF', 'Prise en main rigoureuse de QGIS : projections UTM/WGS84, couches vectorielles, jointures attributaires, sémiologie et mise en page.'),
+  ('collecte-donnees-terrain-kobotoolbox-odk-qfield', 'Module', 'Collecte de données terrain : KoboToolbox, ODK & QField', 'Collecte & Terrain', 'Débutant / Intermédiaire', 5, 30000, 'Formulaire XLSForm validé + couche géolocalisée synchronisée', 'Questionnaires mobiles hors-ligne, géopoints et polygones, déploiement sur smartphones et synchronisation dans QGIS.'),
+  ('manipulation-gps-leves-points-terrain', 'Module', 'Manipulation GPS & levés de points sur le terrain', 'Collecte & Terrain', 'Débutant', 4, 20000, 'Protocole de levé terrain + fichier GPX nettoyé et projeté', 'Paramétrage GPS, relevé de waypoints et parcelles, précision et transfert vers SIG.'),
+  ('google-earth-engine-series-temporelles-occupation-sol', 'Module', 'Google Earth Engine : séries temporelles & occupation du sol', 'Télédétection & Environnement', 'Intermédiaire', 6, 40000, 'Script GEE reproductible + carte d’occupation du sol multi-dates', 'Archives Sentinel-2/Landsat, indices spectraux, classification supervisée et exportation.'),
+  ('bases-donnees-spatiales-postgresql-postgis', 'Module', 'Bases de données spatiales avec PostgreSQL & PostGIS', 'Webmapping & Géodonnées', 'Intermédiaire / Avancé', 6, 45000, 'Schéma PostgreSQL/PostGIS + bibliothèque de requêtes spatiales', 'Modélisation relationnelle, indexation spatiale GIST, requêtes SQL et connexion QGIS.'),
+  ('pack-surveillance-environnementale-degradation-terres', 'Pack complet', 'Surveillance environnementale & dégradation des terres', 'Télédétection & Environnement', 'Intermédiaire', 14, 65000, 'Diagnostic multi-indices sur 10 ans + rapport cartographique complet', 'Télédétection GEE et analyse spatiale QGIS pour quantifier l’évolution du couvert végétal et la dégradation des terres.'),
+  ('pack-chaine-complete-collecte-structuration-geodonnees', 'Pack complet', 'Chaîne complète de collecte et structuration des géo-données', 'Collecte & Terrain', 'Intermédiaire', 12, 55000, 'Dispositif d’enquête terrain → base PostGIS/GeoPackage → tableau de bord', 'Du protocole terrain (GPS + KoboToolbox/QField) jusqu’à la consolidation en base spatiale et cartographie.'),
+  ('parcours-technicien-sig-cartographe-terrain', 'Parcours métier', 'Parcours Technicien SIG & Cartographe Terrain', 'SIG & Cartographie', 'Débutant à Intermédiaire', 28, 95000, 'Portfolio de 4 cartes thématiques + projet complet de terrain soutenu', 'Cursus complet orienté terrain : QGIS, levés GPS, collecte mobile et production cartographique.'),
+  ('parcours-analyste-geospatial-monitoring-environnemental', 'Parcours métier', 'Parcours Analyste Géospatial & Monitoring Environnemental', 'Télédétection & Environnement', 'Intermédiaire à Avancé', 32, 115000, 'Chaîne d’analyse satellite automatisée + base spatiale PostgreSQL/PostGIS', 'Cursus avancé combinant télédétection GEE, bases PostGIS et monitoring environnemental.')
+on conflict (slug) do nothing;</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== LOGIQUE APPLICATIVE JAVASCRIPT ==================== -->
+    <script>
+        const STORAGE_KEY = 'geoformation_afrique_state_v3';
+        const PG_CONFIG_KEY = 'geoformation_afrique_pg_config_v1';
+
+        // Catalogue complet de 9 formations (5 Modules, 2 Packs complets, 2 Parcours métiers)
+        // NOTE DE SÉCURITÉ : Aucun identifiant vidéo YouTube réel n'est exposé publiquement dans le code client par défaut.
+        const INITIAL_COURSES = [
+            {
+                id: 'mod-qgis-fondamentaux',
+                slug: 'fondamentaux-sig-cartographie-qgis',
+                format: 'Module',
+                title: 'Fondamentaux SIG & Cartographie thématique sous QGIS',
+                category: 'SIG & Cartographie',
+                level: 'Débutant',
+                durationHours: 6,
+                priceFcfa: 25000,
+                deliverable: 'Carte de synthèse communale + Atlas d’impression PDF',
+                summary: 'Prise en main rigoureuse de QGIS : systèmes de coordonnées (WGS84 / UTM), structuration des couches vectorielles, jointures attributaires, symbologie cartographique et mise en page professionnelle.',
+                syllabus: [
+                    { title: '1. Architecture d’un projet SIG et gestion des projections UTM / WGS84', duration: '24 min' },
+                    { title: '2. Numérisation propre, topologie et nettoyage des tables attributaires', duration: '32 min' },
+                    { title: '3. Sémiologie graphique, analyses thématiques et génération d’Atlas', duration: '29 min' }
+                ]
+            },
+            {
+                id: 'mod-collecte-kobo-qfield',
+                slug: 'collecte-donnees-terrain-kobotoolbox-odk-qfield',
+                format: 'Module',
+                title: 'Collecte de données terrain : KoboToolbox, ODK & QField',
+                category: 'Collecte & Terrain',
+                level: 'Débutant / Intermédiaire',
+                durationHours: 5,
+                priceFcfa: 30000,
+                deliverable: 'Formulaire XLSForm validé + couche géolocalisée synchronisée',
+                summary: 'Concevez des questionnaires mobiles hors-ligne avec contraintes de saisie, géopoints et polygones, déployez-les sur smartphones et synchronisez vos relevés directement dans QGIS.',
+                syllabus: [
+                    { title: '1. Construction d’un formulaire XLSForm (logique de saut et contrôles)', duration: '26 min' },
+                    { title: '2. Déploiement terrain hors-ligne sur KoboCollect et QField', duration: '31 min' },
+                    { title: '3. Exportation, contrôle qualité et intégration directe dans QGIS', duration: '22 min' }
+                ]
+            },
+            {
+                id: 'mod-gps-leves-terrain',
+                slug: 'manipulation-gps-leves-points-terrain',
+                format: 'Module',
+                title: 'Manipulation GPS & levés de points sur le terrain',
+                category: 'Collecte & Terrain',
+                level: 'Débutant',
+                durationHours: 4,
+                priceFcfa: 20000,
+                deliverable: 'Protocole de levé terrain + fichier GPX nettoyé et projeté',
+                summary: 'Maîtrisez le paramétrage d’un récepteur GPS (Garmin / mobile GNSS), le relevé de waypoints et tracés de parcelles, l’estimation de précision et le transfert vers votre SIG.',
+                syllabus: [
+                    { title: '1. Paramétrage du récepteur GPS : datum, format de coordonnées et précision', duration: '19 min' },
+                    { title: '2. Relevé de points d’intérêt, transects et délimitation de parcelles', duration: '25 min' },
+                    { title: '3. Extraction GPX, correction des dérives et conversion en GeoPackage', duration: '21 min' }
+                ]
+            },
+            {
+                id: 'mod-gee-occupation-sol',
+                slug: 'google-earth-engine-series-temporelles-occupation-sol',
+                format: 'Module',
+                title: 'Google Earth Engine : séries temporelles & occupation du sol',
+                category: 'Télédétection & Environnement',
+                level: 'Intermédiaire',
+                durationHours: 6,
+                priceFcfa: 40000,
+                deliverable: 'Script GEE reproductible + carte d’occupation du sol multi-dates',
+                summary: 'Exploitez les archives Sentinel-2 et Landsat sans téléchargement lourd : filtrage nuageux, calcul d’indices spectraux (NDVI, NDWI, NDBI), classification supervisée et exportation.',
+                syllabus: [
+                    { title: '1. Prise en main de l’éditeur GEE et filtrage des collections Sentinel-2', duration: '28 min' },
+                    { title: '2. Séries temporelles d’indices de végétation et d’eau (NDVI / NDWI)', duration: '34 min' },
+                    { title: '3. Classification supervisée Random Forest et matrice de confusion', duration: '36 min' }
+                ]
+            },
+            {
+                id: 'mod-postgis-bases-spatiales',
+                slug: 'bases-donnees-spatiales-postgresql-postgis',
+                format: 'Module',
+                title: 'Bases de données spatiales avec PostgreSQL & PostGIS',
+                category: 'Webmapping & Géodonnées',
+                level: 'Intermédiaire / Avancé',
+                durationHours: 6,
+                priceFcfa: 45000,
+                deliverable: 'Schéma PostgreSQL/PostGIS + bibliothèque de requêtes spatiales',
+                summary: 'Centralisez vos données géographiques multi-utilisateurs : modélisation relationnelle, indexation spatiale GIST, requêtes géométriques SQL (ST_Intersects, ST_Buffer) et connexion QGIS.',
+                syllabus: [
+                    { title: '1. Modélisation relationnelle et activation de l’extension PostGIS', duration: '25 min' },
+                    { title: '2. Requêtes spatiales essentielles, jointures géométriques et vues', duration: '33 min' },
+                    { title: '3. Droits d’accès par rôle et édition collaborative depuis QGIS', duration: '27 min' }
+                ]
+            },
+            {
+                id: 'pack-surveillance-environnementale',
+                slug: 'pack-surveillance-environnementale-degradation-terres',
+                format: 'Pack complet',
+                title: 'Surveillance environnementale & dégradation des terres',
+                category: 'Télédétection & Environnement',
+                level: 'Intermédiaire',
+                durationHours: 14,
+                priceFcfa: 65000,
+                deliverable: 'Diagnostic multi-indices sur 10 ans + rapport cartographique complet',
+                summary: 'Pack combinant télédétection sous Google Earth Engine et analyse spatiale sous QGIS pour quantifier l’évolution du couvert végétal, l’érosion et la pression foncière sur un bassin versant.',
+                syllabus: [
+                    { title: '1. Préparation de la zone d’étude et constitution des composites multi-années', duration: '30 min' },
+                    { title: '2. Détection des changements d’occupation du sol et indicateurs ODD 15.3.1', duration: '38 min' },
+                    { title: '3. Croisement avec les données pluviométriques et synthèse cartographique', duration: '34 min' }
+                ]
+            },
+            {
+                id: 'pack-chaine-collecte-geodonnees',
+                slug: 'pack-chaine-complete-collecte-structuration-geodonnees',
+                format: 'Pack complet',
+                title: 'Chaîne complète de collecte et structuration des géo-données',
+                category: 'Collecte & Terrain',
+                level: 'Intermédiaire',
+                durationHours: 12,
+                priceFcfa: 55000,
+                deliverable: 'Dispositif d’enquête terrain → base PostGIS/GeoPackage → tableau de bord',
+                summary: 'De la conception du protocole terrain (GPS + KoboToolbox/QField) jusqu’à la consolidation dans une base spatiale propre et la restitution cartographique pour les équipes projet.',
+                syllabus: [
+                    { title: '1. Architecture d’un dispositif de collecte multi-enquêteurs sur le terrain', duration: '27 min' },
+                    { title: '2. Contrôle qualité automatisé et nettoyage des géométries remontées', duration: '31 min' },
+                    { title: '3. Structuration en GeoPackage / PostGIS et production des cartes de suivi', duration: '29 min' }
+                ]
+            },
+            {
+                id: 'parcours-technicien-sig',
+                slug: 'parcours-technicien-sig-cartographe-terrain',
+                format: 'Parcours métier',
+                title: 'Parcours Technicien SIG & Cartographe Terrain',
+                category: 'SIG & Cartographie',
+                level: 'Débutant à Intermédiaire',
+                durationHours: 28,
+                priceFcfa: 95000,
+                deliverable: 'Portfolio de 4 cartes thématiques + projet complet de terrain soutenu',
+                summary: 'Parcours complet préparant aux missions opérationnelles en bureau d’études, collectivité ou ONG : maîtrise de QGIS, levés GPS, collecte mobile QField/Kobo et production cartographique.',
+                syllabus: [
+                    { title: 'Étape 1 : Maîtrise complète de QGIS et gestion de bases GeoPackage', duration: '42 min' },
+                    { title: 'Étape 2 : Conduite d’une campagne de relevés GPS et formulaires mobiles', duration: '39 min' },
+                    { title: 'Étape 3 : Étude de cas intégrée — Cartographie d’infrastructures et ressources', duration: '45 min' }
+                ]
+            },
+            {
+                id: 'parcours-analyste-geospatial',
+                slug: 'parcours-analyste-geospatial-monitoring-environnemental',
+                format: 'Parcours métier',
+                title: 'Parcours Analyste Géospatial & Monitoring Environnemental',
+                category: 'Télédétection & Environnement',
+                level: 'Intermédiaire à Avancé',
+                durationHours: 32,
+                priceFcfa: 115000,
+                deliverable: 'Chaîne d’analyse satellite automatisée + base spatiale PostgreSQL/PostGIS',
+                summary: 'Cursus avancé associant télédétection sous Google Earth Engine, bases de données spatiales PostGIS et cartographie décisionnelle pour le suivi environnemental et climatique.',
+                syllabus: [
+                    { title: 'Étape 1 : Traitement massif d’images Sentinel/Landsat sous Google Earth Engine', duration: '44 min' },
+                    { title: 'Étape 2 : Stockage, indexation et requêtes spatiales sous PostgreSQL/PostGIS', duration: '41 min' },
+                    { title: 'Étape 3 : Projet final — Observatoire territorial d’évolution environnementale', duration: '48 min' }
+                ]
+            }
+        ];
+
+        // État initial de démonstration locale
+        function getDefaultState() {
+            return {
+                currentUserId: null, // Visiteur par défaut (aucun cours débloqué)
+                users: [
+                    {
+                        id: 'user-admin-1',
+                        fullName: 'Dr. Sékou Coulibaly (Admin)',
+                        email: 'admin@geoformation-afrique.org',
+                        role: 'admin'
+                    },
+                    {
+                        id: 'user-student-new',
+                        fullName: 'Aminata Diallo',
+                        email: 'aminata.diallo@exemple.org',
+                        role: 'student'
+                    },
+                    {
+                        id: 'user-student-active',
+                        fullName: 'Moussa Traoré',
+                        email: 'moussa.traore@exemple.org',
+                        role: 'student'
+                    }
+                ],
+                enrollments: [
+                    // Nouvel étudiant : 0 accès actif (une demande en attente pour démonstration)
+                    {
+                        id: 'enr-101',
+                        userId: 'user-student-new',
+                        courseId: 'mod-qgis-fondamentaux',
+                        status: 'pending',
+                        paymentMethod: 'Orange Money / Moov Money',
+                        paymentRef: 'OM-2026-4419',
+                        createdAt: '2026-11-24 10:15'
+                    },
+                    // Étudiant validé : accès actif sur 1 module validé par l'administrateur
+                    {
+                        id: 'enr-102',
+                        userId: 'user-student-active',
+                        courseId: 'mod-qgis-fondamentaux',
+                        status: 'active',
+                        paymentMethod: 'Virement bancaire',
+                        paymentRef: 'VIR-2026-908',
+                        validatedAt: '2026-11-20 16:40',
+                        createdAt: '2026-11-20 14:10'
+                    }
+                ],
+                // Stockage privé des IDs YouTube non répertoriés (gérés côté Admin ou PostgreSQL RLS)
+                adminVideoVault: {
+                    'mod-qgis-fondamentaux': ['M7lc1UVf-VE', 'M7lc1UVf-VE', 'M7lc1UVf-VE']
+                }
+            };
+        }
+
+        function loadState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return getDefaultState();
+                const parsed = JSON.parse(raw);
+                return Object.assign(getDefaultState(), parsed);
+            } catch (e) {
+                return getDefaultState();
+            }
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+            } catch (e) {
+                console.warn('Impossible de sauvegarder dans localStorage', e);
+            }
+        }
+
+        // Variables globales
+        let appState = loadState();
+        let supabaseClient = null;
+        let activeFormatFilter = 'all';
+        let activeCategoryFilter = 'all';
+        let searchQuery = '';
+        let activeCourseId = null;
+        let selectedLessonIndex = 0;
+        let authModalMode = 'login';
+        let demoBannerUnlocked = false;
+
+        // ==================== GESTION DE LA BARRE DE DÉMO (MASQUÉE PAR DÉFAUT) ====================
+        function shouldShowDemoBanner() {
+            if (demoBannerUnlocked) return true;
+            try {
+                const params = new URLSearchParams(window.location.search || '');
+                return params.get('demo') === '1';
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function syncDemoBannerVisibility() {
+            const banner = document.getElementById('demo-role-banner');
+            if (!banner) return;
+            banner.style.display = shouldShowDemoBanner() ? 'block' : 'none';
+        }
+
+        window.toggleDemoBar = function (forceState) {
+            demoBannerUnlocked = typeof forceState === 'boolean' ? forceState : !shouldShowDemoBanner();
+            syncDemoBannerVisibility();
+            return demoBannerUnlocked;
+        };
+
+        // ==================== UTILITAIRES UTILISATEUR & INSCRIPTIONS ====================
+        let liveUser = null;
+        let liveEnrollments = [];
+        let liveLessonsByCourse = {};
+
+        function isLivePostgresActive() {
+            return Boolean(supabaseClient);
+        }
+
+        function getCurrentUser() {
+            if (isLivePostgresActive()) return liveUser;
+            if (!appState.currentUserId) return null;
+            return appState.users.find(u => u.id === appState.currentUserId) || null;
+        }
+
+        function getUserEnrollmentForCourse(userId, courseId) {
+            if (!userId) return null;
+            if (isLivePostgresActive()) {
+                return liveEnrollments.find(e => e.userId === userId && e.courseId === courseId) || null;
+            }
+            return appState.enrollments.find(e => e.userId === userId && e.courseId === courseId) || null;
+        }
+
+        function hasActiveAccess(user, courseId) {
+            if (!user) return false;
+            if (user.role === 'admin') return true;
+            const enr = getUserEnrollmentForCourse(user.id, courseId);
+            return Boolean(enr && enr.status === 'active');
+        }
+
+        function formatFcfa(amount) {
+            return new Intl.NumberFormat('fr-FR').format(amount) + ' FCFA';
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        async function syncLiveSupabaseData() {
+            if (!supabaseClient) {
+                liveUser = null;
+                liveEnrollments = [];
+                liveLessonsByCourse = {};
+                return;
+            }
+            try {
+                const { data: authData } = await supabaseClient.auth.getUser();
+                const authUser = authData && authData.user ? authData.user : null;
+                if (!authUser) {
+                    liveUser = null;
+                    liveEnrollments = [];
+                    liveLessonsByCourse = {};
+                    return;
+                }
+
+                const { data: profileData } = await supabaseClient
+                    .from('profiles')
+                    .select('id, full_name, role')
+                    .eq('id', authUser.id)
+                    .single();
+
+                liveUser = {
+                    id: authUser.id,
+                    fullName: (profileData && profileData.full_name) || (authUser.user_metadata && authUser.user_metadata.full_name) || authUser.email.split('@')[0],
+                    email: authUser.email,
+                    role: (profileData && profileData.role) || 'student'
+                };
+
+                const { data: enrRows } = await supabaseClient
+                    .from('enrollments')
+                    .select('id, user_id, course_id, status, payment_method, payment_ref, validated_at, created_at, profiles(full_name)')
+                    .order('created_at', { ascending: false });
+
+                liveEnrollments = (enrRows || []).map(r => ({
+                    id: r.id,
+                    userId: r.user_id,
+                    userFullName: r.profiles && r.profiles.full_name ? r.profiles.full_name : r.user_id,
+                    userEmail: r.user_id === authUser.id ? authUser.email : '',
+                    courseId: r.course_id,
+                    status: r.status,
+                    paymentMethod: r.payment_method || '',
+                    paymentRef: r.payment_ref || '',
+                    validatedAt: r.validated_at ? String(r.validated_at).slice(0, 16).replace('T', ' ') : '',
+                    createdAt: r.created_at ? String(r.created_at).slice(0, 16).replace('T', ' ') : ''
+                }));
+
+                const { data: lessonRows } = await supabaseClient
+                    .from('course_lessons')
+                    .select('course_id, youtube_video_id, position')
+                    .order('position', { ascending: true });
+
+                const grouped = {};
+                (lessonRows || []).forEach(lr => {
+                    if (!grouped[lr.course_id]) grouped[lr.course_id] = [];
+                    grouped[lr.course_id].push(lr.youtube_video_id || '');
+                });
+                liveLessonsByCourse = grouped;
+            } catch (err) {
+                console.error('Erreur synchronisation PostgreSQL:', err);
+                showToast('Erreur de synchronisation PostgreSQL. Vérifiez les tables et politiques RLS.');
+            }
+        }
+
+        // ==================== NAVIGATION ENTRE LES VUES ====================
+        function showSection(sectionName) {
+            if (sectionName === 'admin') {
+                const currentUser = getCurrentUser();
+                if (!currentUser || currentUser.role !== 'admin') {
+                    showToast('Accès réservé à l’administrateur.');
+                    return;
+                }
+            }
+            const sections = ['catalog', 'course-detail', 'modalities', 'student', 'admin'];
+            sections.forEach(sec => {
+                const el = document.getElementById('view-' + sec);
+                if (el) {
+                    el.classList.toggle('hidden', sec !== sectionName);
+                }
+            });
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-forest-50', 'text-forest-900', 'font-semibold');
+            });
+            const activeBtn = document.getElementById('nav-' + sectionName);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-forest-50', 'text-forest-900', 'font-semibold');
+            }
+
+            if (sectionName === 'catalog') renderCatalog();
+            if (sectionName === 'student') renderStudentDashboard();
+            if (sectionName === 'admin') renderAdminDashboard();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function toggleMobileMenu(force) {
+            const menu = document.getElementById('mobile-menu');
+            if (!menu) return;
+            if (typeof force === 'boolean') {
+                menu.classList.toggle('hidden', !force);
+            } else {
+                menu.classList.toggle('hidden');
+            }
+        }
+
+        // ==================== MISE À JOUR DE L'INTERFACE GLOBALE ====================
+        function updateGlobalUI() {
+            syncDemoBannerVisibility();
+            const user = getCurrentUser();
+            const isAdmin = Boolean(user && user.role === 'admin');
+            const enrollmentsList = isLivePostgresActive() ? liveEnrollments : appState.enrollments;
+
+            const navAdmin = document.getElementById('nav-admin');
+            const mobileNavAdmin = document.getElementById('mobile-nav-admin');
+            const headerPgBtn = document.getElementById('header-pg-btn');
+            const mobilePgBtn = document.getElementById('mobile-pg-btn');
+            const footerPgBtn = document.getElementById('footer-pg-btn');
+
+            if (navAdmin) navAdmin.classList.toggle('hidden', !isAdmin);
+            if (mobileNavAdmin) mobileNavAdmin.classList.toggle('hidden', !isAdmin);
+            if (headerPgBtn) headerPgBtn.classList.toggle('hidden', !isAdmin);
+            if (mobilePgBtn) mobilePgBtn.classList.toggle('hidden', !isAdmin);
+            if (footerPgBtn) footerPgBtn.classList.toggle('hidden', !isAdmin);
+
+            const headerAuth = document.getElementById('header-auth-area');
+            const mobileAuth = document.getElementById('mobile-auth-area');
+
+            if (!user) {
+                const loginHtml = `
+                    <button type="button" onclick="openAuthModal('login')" class="px-4 py-2 rounded-xl bg-forest-800 hover:bg-forest-900 text-white text-xs font-semibold transition">
+                        Connexion / Compte
+                    </button>
+                `;
+                if (headerAuth) headerAuth.innerHTML = loginHtml;
+                if (mobileAuth) mobileAuth.innerHTML = loginHtml;
+            } else {
+                const roleTag = user.role === 'admin'
+                    ? '<span class="px-1.5 py-0.5 rounded bg-ochre-100 text-ochre-800 text-[10px] font-bold">ADMIN</span>'
+                    : '<span class="px-1.5 py-0.5 rounded bg-forest-100 text-forest-800 text-[10px] font-bold">APPRENANT</span>';
+
+                const accountHtml = `
+                    <div class="flex items-center gap-2 bg-white border border-stone-200 rounded-xl px-3 py-1.5">
+                        <div class="text-right">
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-xs font-semibold text-stone-800">${escapeHtml(user.fullName)}</span>
+                                ${roleTag}
+                            </div>
+                        </div>
+                        <button type="button" onclick="logoutUser()" class="ml-1 text-[11px] text-stone-500 hover:text-ochre-700 font-medium underline">
+                            Sortir
+                        </button>
+                    </div>
+                `;
+                if (headerAuth) headerAuth.innerHTML = accountHtml;
+                if (mobileAuth) mobileAuth.innerHTML = accountHtml;
+            }
+
+            const studentBadge = document.getElementById('student-active-badge');
+            if (studentBadge) {
+                if (user && user.role === 'student') {
+                    const activeCount = enrollmentsList.filter(e => e.userId === user.id && e.status === 'active').length;
+                    studentBadge.textContent = activeCount;
+                    studentBadge.classList.remove('hidden');
+                } else {
+                    studentBadge.classList.add('hidden');
+                }
+            }
+
+            const adminBadge = document.getElementById('admin-pending-badge');
+            if (adminBadge) {
+                const pendingCount = enrollmentsList.filter(e => e.status === 'pending').length;
+                if (pendingCount > 0) {
+                    adminBadge.textContent = pendingCount;
+                    adminBadge.classList.remove('hidden');
+                } else {
+                    adminBadge.classList.add('hidden');
+                }
+            }
+
+            const pgDot = document.getElementById('pg-status-dot');
+            const runtimeBadge = document.getElementById('runtime-mode-badge');
+            if (supabaseClient) {
+                if (pgDot) pgDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                if (runtimeBadge) runtimeBadge.textContent = 'PostgreSQL (Supabase) connecté';
+            } else {
+                if (pgDot) pgDot.className = 'w-2 h-2 rounded-full bg-stone-400';
+                if (runtimeBadge) runtimeBadge.textContent = 'Mode Simulation Locale';
+            }
+        }
+
+        // ==================== FILTRES & RENDU DU CATALOGUE ====================
+        function setFormatFilter(fmt) {
+            activeFormatFilter = fmt;
+            document.querySelectorAll('.format-pill').forEach(btn => {
+                const isSelected = btn.getAttribute('data-format') === fmt;
+                btn.className = isSelected
+                    ? 'format-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-forest-800 text-white transition'
+                    : 'format-pill px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-stone-100 text-stone-700 hover:bg-stone-200 transition';
+            });
+            renderCatalog();
+        }
+
+        function setCategoryFilter(cat) {
+            activeCategoryFilter = cat;
+            document.querySelectorAll('.cat-pill').forEach(btn => {
+                const isSelected = btn.getAttribute('data-cat') === cat;
+                btn.className = isSelected
+                    ? 'cat-pill px-3 py-1 rounded-full text-xs font-medium bg-ochre-700 text-white transition'
+                    : 'cat-pill px-3 py-1 rounded-full text-xs font-medium bg-stone-100 text-stone-700 hover:bg-stone-200 transition';
+            });
+            renderCatalog();
+        }
+
+        function handleSearchInput(val) {
+            searchQuery = (val || '').trim().toLowerCase();
+            renderCatalog();
+        }
+
+        function resetCatalogFilters() {
+            activeFormatFilter = 'all';
+            activeCategoryFilter = 'all';
+            searchQuery = '';
+            const searchInput = document.getElementById('catalog-search');
+            if (searchInput) searchInput.value = '';
+            setFormatFilter('all');
+            setCategoryFilter('all');
+        }
+
+        function renderCatalog() {
+            const grid = document.getElementById('catalog-grid');
+            const countLabel = document.getElementById('catalog-count-label');
+            if (!grid) return;
+
+            const user = getCurrentUser();
+            const filtered = INITIAL_COURSES.filter(course => {
+                const matchFormat = activeFormatFilter === 'all' || course.format === activeFormatFilter;
+                const matchCat = activeCategoryFilter === 'all' || course.category === activeCategoryFilter;
+                const matchSearch = !searchQuery ||
+                    course.title.toLowerCase().includes(searchQuery) ||
+                    course.summary.toLowerCase().includes(searchQuery) ||
+                    course.category.toLowerCase().includes(searchQuery) ||
+                    course.deliverable.toLowerCase().includes(searchQuery);
+                return matchFormat && matchCat && matchSearch;
+            });
+
+            if (countLabel) {
+                countLabel.textContent = filtered.length + (filtered.length > 1 ? ' formations affichées' : ' formation affichée');
+            }
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full bg-white rounded-2xl p-10 border border-stone-200 text-center space-y-3">
+                        <p class="font-serif text-lg font-semibold text-stone-800">Aucune formation ne correspond à ces critères.</p>
+                        <p class="text-sm text-stone-500">Essayez d'élargir votre recherche ou de réinitialiser les filtres.</p>
+                        <button type="button" onclick="resetCatalogFilters()" class="px-4 py-2 rounded-xl bg-forest-800 text-white text-xs font-semibold">Tout afficher</button>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(course => {
+                const enr = user ? getUserEnrollmentForCourse(user.id, course.id) : null;
+                let accessBadge = '';
+                if (user && user.role === 'admin') {
+                    accessBadge = `<span class="px-2.5 py-1 rounded-full bg-ochre-100 text-ochre-800 text-[11px] font-semibold">Mode Admin</span>`;
+                } else if (enr && enr.status === 'active') {
+                    accessBadge = `<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 text-[11px] font-semibold">Accès validé</span>`;
+                } else if (enr && enr.status === 'pending') {
+                    accessBadge = `<span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 text-[11px] font-semibold">En attente de validation</span>`;
+                } else if (enr && enr.status === 'revoked') {
+                    accessBadge = `<span class="px-2.5 py-1 rounded-full bg-rose-100 text-rose-900 text-[11px] font-semibold">Accès suspendu</span>`;
+                }
+
+                const formatBadgeStyle = course.format === 'Parcours métier'
+                    ? 'bg-forest-900 text-white'
+                    : course.format === 'Pack complet'
+                        ? 'bg-ochre-700 text-white'
+                        : 'bg-forest-50 text-forest-900 border border-forest-800/15';
+
+                return `
+                    <article class="bg-white rounded-2xl border border-stone-200/90 shadow-xs hover:shadow-md transition flex flex-col justify-between p-6">
+                        <div class="space-y-3.5">
+                            <div class="flex items-center justify-between gap-2 flex-wrap">
+                                <span class="px-2.5 py-1 rounded-lg text-[11px] font-semibold ${formatBadgeStyle}">
+                                    ${escapeHtml(course.format)}
+                                </span>
+                                ${accessBadge || `<span class="text-xs text-stone-500 font-medium">${escapeHtml(course.level)}</span>`}
+                            </div>
+
+                            <div>
+                                <p class="text-[11px] font-semibold uppercase tracking-wider text-ochre-700 mb-1">${escapeHtml(course.category)}</p>
+                                <h3 class="font-serif text-lg font-semibold text-forest-950 leading-snug">
+                                    ${escapeHtml(course.title)}
+                                </h3>
+                            </div>
+
+                            <p class="text-sm text-stone-600 leading-relaxed line-clamp-3">
+                                ${escapeHtml(course.summary)}
+                            </p>
+
+                            <div class="bg-paper rounded-xl p-3 border border-stone-200/70 text-xs text-stone-700">
+                                <span class="font-semibold text-forest-900">Livrable pratique :</span> ${escapeHtml(course.deliverable)}
+                            </div>
+                        </div>
+
+                        <div class="pt-5 mt-5 border-t border-stone-100 flex items-center justify-between gap-3">
+                            <div>
+                                <span class="block text-[11px] text-stone-400">${course.durationHours} h · ${course.syllabus.length} séquences</span>
+                                <span class="font-serif text-base font-semibold text-forest-900">${formatFcfa(course.priceFcfa)}</span>
+                            </div>
+                            <button type="button" onclick="openCourseDetail('${course.id}')" class="px-4 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-white text-xs font-semibold transition">
+                                ${enr && enr.status === 'active' ? 'Ouvrir le cours' : 'Voir le programme'}
+                            </button>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        // ==================== VUE DÉTAILLÉE D'UN COURS & CONTRÔLE D'ACCÈS ====================
+        function openCourseDetail(courseId) {
+            activeCourseId = courseId;
+            selectedLessonIndex = 0;
+            showSection('course-detail');
+            renderCourseDetail();
+        }
+
+        function selectLesson(idx) {
+            selectedLessonIndex = idx;
+            renderCourseDetail();
+        }
+
+        function renderCourseDetail() {
+            const container = document.getElementById('course-detail-container');
+            if (!container) return;
+
+            const course = INITIAL_COURSES.find(c => c.id === activeCourseId);
+            if (!course) return;
+
+            const user = getCurrentUser();
+            const enr = user ? getUserEnrollmentForCourse(user.id, course.id) : null;
+            const unlocked = hasActiveAccess(user, course.id);
+
+            const videoIds = unlocked
+                ? (isLivePostgresActive() ? (liveLessonsByCourse[course.id] || []) : (appState.adminVideoVault[course.id] || []))
+                : [];
+            const currentVideoId = unlocked ? (videoIds[selectedLessonIndex] || '') : '';
+            const currentLesson = course.syllabus[selectedLessonIndex] || course.syllabus[0];
+
+            let playerBlockHtml = '';
+            if (unlocked) {
+                playerBlockHtml = `
+                    <div class="bg-forest-950 rounded-2xl overflow-hidden border border-forest-800 shadow-lg">
+                        <div class="px-4 py-3 bg-forest-900/90 border-b border-forest-800 flex flex-wrap items-center justify-between gap-2 text-xs text-stone-200">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                <span class="font-semibold">Accès nominatif actif — Vidéo YouTube Non répertoriée</span>
+                            </div>
+                            <span class="text-stone-400">${escapeHtml(currentLesson.title)}</span>
+                        </div>
+
+                        <div class="relative aspect-video bg-black flex items-center justify-center">
+                            ${currentVideoId
+                                ? `<iframe class="w-full h-full" src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(currentVideoId)}?rel=0&modestbranding=1" title="${escapeHtml(currentLesson.title)}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
+                                : `<div class="p-8 text-center text-stone-300 space-y-2 max-w-md">
+                                       <p class="font-serif text-lg text-white">Identifiant vidéo YouTube non encore renseigné</p>
+                                       <p class="text-xs text-stone-400">Votre accès est bien validé, mais aucun ID vidéo non répertorié n'est encore associé à cette séquence.</p>
+                                   </div>`
+                            }
+                            <div class="video-watermark absolute px-3 py-1 rounded bg-black/45 text-white/80 text-[11px] font-mono border border-white/10">
+                                ${escapeHtml(user.fullName)} · ${escapeHtml(user.email)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                let statusExplanation = '';
+                let ctaButton = '';
+
+                if (!user) {
+                    statusExplanation = 'Connectez-vous ou créez un compte apprenant pour soumettre une demande d’accès à cette formation.';
+                    ctaButton = `
+                        <button type="button" onclick="openAuthModal('login')" class="px-5 py-3 rounded-xl bg-forest-800 hover:bg-forest-900 text-white text-sm font-semibold transition">
+                            Se connecter pour demander l'accès
+                        </button>
+                    `;
+                } else if (enr && enr.status === 'pending') {
+                    statusExplanation = `Votre demande d'accès (réf. <strong>${escapeHtml(enr.paymentRef || '—')}</strong>) est enregistrée avec le statut <strong>En attente de validation</strong>. Dès que l'administrateur confirme le règlement, les vidéos se débloqueront ici.`;
+                    ctaButton = `
+                        <span class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-100 text-amber-900 text-xs font-semibold">
+                            En attente de validation administrateur
+                        </span>
+                    `;
+                } else if (enr && enr.status === 'revoked') {
+                    statusExplanation = 'Votre accès à cette formation a été suspendu par l’administrateur. Contactez le secrétariat pédagogique pour régulariser votre situation.';
+                    ctaButton = `
+                        <button type="button" onclick="openEnrollModal('${course.id}')" class="px-5 py-3 rounded-xl bg-ochre-700 hover:bg-ochre-600 text-white text-sm font-semibold transition">
+                            Soumettre une nouvelle référence
+                        </button>
+                    `;
+                } else {
+                    statusExplanation = 'Les séquences vidéo (YouTube non répertorié) et jeux de données SIG sont réservés aux apprenants inscrits et validés par l’administrateur.';
+                    ctaButton = `
+                        <button type="button" onclick="openEnrollModal('${course.id}')" class="px-5 py-3 rounded-xl bg-ochre-700 hover:bg-ochre-600 text-white text-sm font-semibold transition">
+                            Acheter / Demander l'accès (${formatFcfa(course.priceFcfa)})
+                        </button>
+                    `;
+                }
+
+                playerBlockHtml = `
+                    <div class="bg-white rounded-2xl border border-stone-200 p-8 sm:p-10 text-center space-y-4 shadow-xs">
+                        <div class="w-12 h-12 rounded-2xl bg-ochre-50 text-ochre-700 flex items-center justify-center mx-auto border border-ochre-700/20">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="max-w-xl mx-auto space-y-2">
+                            <h3 class="font-serif text-xl font-semibold text-forest-950">Contenu vidéo protégé — Accès restreint</h3>
+                            <p class="text-sm text-stone-600 leading-relaxed">${statusExplanation}</p>
+                        </div>
+                        <div class="pt-1">${ctaButton}</div>
+                    </div>
+                `;
+            }
+
+            const lessonsHtml = course.syllabus.map((lesson, index) => {
+                const isCurrent = index === selectedLessonIndex;
+                return `
+                    <button type="button" onclick="${unlocked ? `selectLesson(${index})` : `showToast('Accès réservé aux comptes validés par l’administrateur.')`}"
+                        class="w-full text-left p-4 rounded-xl border transition flex items-center justify-between gap-3 ${isCurrent && unlocked ? 'bg-forest-50 border-forest-800/40' : 'bg-white border-stone-200 hover:bg-stone-50'}">
+                        <div class="flex items-center gap-3">
+                            <span class="w-7 h-7 rounded-lg ${unlocked ? 'bg-forest-800 text-white' : 'bg-stone-100 text-stone-500'} text-xs font-semibold flex items-center justify-center shrink-0">
+                                ${unlocked ? '▶' : '🔒'}
+                            </span>
+                            <div>
+                                <p class="text-sm font-semibold text-stone-900">${escapeHtml(lesson.title)}</p>
+                                <p class="text-xs text-stone-500">${unlocked ? 'Vidéo privée débloquée' : 'Verrouillé jusqu’à validation'}</p>
+                            </div>
+                        </div>
+                        <span class="text-xs font-medium text-stone-500 shrink-0">${escapeHtml(lesson.duration)}</span>
+                    </button>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div class="lg:col-span-8 space-y-6">
+                        <div class="space-y-2">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="px-2.5 py-1 rounded-lg bg-forest-800 text-white text-xs font-semibold">${escapeHtml(course.format)}</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-ochre-50 text-ochre-800 text-xs font-semibold">${escapeHtml(course.category)}</span>
+                                <span class="text-xs text-stone-500">${escapeHtml(course.level)} · ${course.durationHours} heures</span>
+                            </div>
+                            <h1 class="font-serif text-2xl sm:text-3xl font-semibold text-forest-950">${escapeHtml(course.title)}</h1>
+                            <p class="text-stone-600 text-sm sm:text-base leading-relaxed">${escapeHtml(course.summary)}</p>
+                        </div>
+
+                        ${playerBlockHtml}
+
+                        <div class="space-y-3">
+                            <h2 class="font-serif text-xl font-semibold text-forest-950">Programme détaillé des séquences</h2>
+                            <div class="space-y-2.5">${lessonsHtml}</div>
+                        </div>
+                    </div>
+
+                    <aside class="lg:col-span-4 space-y-5">
+                        <div class="bg-white rounded-2xl p-6 border border-stone-200 shadow-xs space-y-4">
+                            <div>
+                                <span class="text-xs text-stone-500">Frais d'inscription</span>
+                                <p class="font-serif text-2xl font-semibold text-forest-950">${formatFcfa(course.priceFcfa)}</p>
+                            </div>
+                            <div class="space-y-2 text-xs text-stone-600 border-t border-stone-100 pt-4">
+                                <p><strong>Livrable attendu :</strong> ${escapeHtml(course.deliverable)}</p>
+                                <p><strong>Diffusion :</strong> Vidéos YouTube non répertoriées + données SIG</p>
+                                <p><strong>Contrôle :</strong> Validation nominative PostgreSQL</p>
+                            </div>
+                            ${!unlocked && (!enr || enr.status !== 'pending')
+                                ? `<button type="button" onclick="${user ? `openEnrollModal('${course.id}')` : `openAuthModal('login')`}" class="w-full py-3 rounded-xl bg-ochre-700 hover:bg-ochre-600 text-white text-sm font-semibold transition">
+                                       Demander l'accès à cette formation
+                                   </button>`
+                                : ''
+                            }
+                        </div>
+                    </aside>
+                </div>
+            `;
+        }
+
+        // ==================== ESPACE ÉTUDIANT ====================
+        function renderStudentDashboard() {
+            const container = document.getElementById('student-dashboard-container');
+            if (!container) return;
+
+            const user = getCurrentUser();
+            if (!user) {
+                container.innerHTML = `
+                    <div class="max-w-lg mx-auto bg-white rounded-2xl p-8 border border-stone-200 text-center space-y-4 shadow-xs">
+                        <h1 class="font-serif text-2xl font-semibold text-forest-950">Espace Apprenant</h1>
+                        <p class="text-sm text-stone-600">Connectez-vous pour consulter vos formations actives, suivre l'état de validation de vos paiements et accéder aux vidéos débloquées.</p>
+                        <button type="button" onclick="openAuthModal('login')" class="px-5 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-white text-sm font-semibold">
+                            Se connecter / Créer un compte
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            if (user.role === 'admin') {
+                container.innerHTML = `
+                    <div class="bg-white rounded-2xl p-8 border border-stone-200 space-y-4">
+                        <h1 class="font-serif text-2xl font-semibold text-forest-950">Vous êtes connecté en tant qu'Administrateur</h1>
+                        <p class="text-sm text-stone-600">En tant qu'administrateur, vous disposez d'un accès complet à toutes les formations et à la gestion des inscriptions.</p>
+                        <button type="button" onclick="showSection('admin')" class="px-5 py-2.5 rounded-xl bg-ochre-700 text-white text-sm font-semibold">
+                            Ouvrir le panneau Administration
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            const enrollmentsList = isLivePostgresActive() ? liveEnrollments : appState.enrollments;
+            const myEnrollments = enrollmentsList.filter(e => e.userId === user.id);
+            const activeEnrs = myEnrollments.filter(e => e.status === 'active');
+            const otherEnrs = myEnrollments.filter(e => e.status !== 'active');
+
+            const activeCardsHtml = activeEnrs.length === 0
+                ? `<div class="bg-white rounded-2xl p-6 border border-stone-200 text-sm text-stone-600">
+                       Vous n'avez encore <strong>aucune formation validée</strong>. Choisissez une formation dans le catalogue et soumettez votre référence de paiement.
+                   </div>`
+                : `<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    ${activeEnrs.map(enr => {
+                        const c = INITIAL_COURSES.find(item => item.id === enr.courseId);
+                        if (!c) return '';
+                        return `
+                            <div class="bg-white rounded-2xl p-6 border border-emerald-700/30 shadow-xs flex flex-col justify-between gap-4">
+                                <div class="space-y-2">
+                                    <span class="inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 text-xs font-semibold">Accès actif</span>
+                                    <h3 class="font-serif text-lg font-semibold text-forest-950">${escapeHtml(c.title)}</h3>
+                                    <p class="text-xs text-stone-500">Validé le ${escapeHtml(enr.validatedAt || enr.createdAt)} · Réf. ${escapeHtml(enr.paymentRef || '—')}</p>
+                                </div>
+                                <button type="button" onclick="openCourseDetail('${c.id}')" class="w-full py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-white text-xs font-semibold">
+                                    Accéder aux vidéos du cours
+                                </button>
+                            </div>
+                        `;
+                    }).join('')}
+                   </div>`;
+
+            const pendingTableHtml = otherEnrs.length === 0
+                ? ''
+                : `
+                    <div class="space-y-3 pt-4">
+                        <h2 class="font-serif text-xl font-semibold text-forest-950">Demandes en attente ou suspendues</h2>
+                        <div class="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-sand text-xs uppercase text-stone-500 border-b border-stone-200">
+                                    <tr>
+                                        <th class="px-4 py-3">Formation</th>
+                                        <th class="px-4 py-3">Référence</th>
+                                        <th class="px-4 py-3">Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-stone-100">
+                                    ${otherEnrs.map(enr => {
+                                        const c = INITIAL_COURSES.find(item => item.id === enr.courseId);
+                                        const badge = enr.status === 'pending'
+                                            ? '<span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-semibold">En attente de validation</span>'
+                                            : '<span class="px-2.5 py-1 rounded-full bg-rose-100 text-rose-900 text-xs font-semibold">Accès révoqué</span>';
+                                        return `
+                                            <tr>
+                                                <td class="px-4 py-3 font-medium text-stone-900">${escapeHtml(c ? c.title : enr.courseId)}</td>
+                                                <td class="px-4 py-3 text-xs font-mono text-stone-600">${escapeHtml(enr.paymentRef || '—')}</td>
+                                                <td class="px-4 py-3">${badge}</td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+
+            container.innerHTML = `
+                <div class="space-y-8">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 pb-6">
+                        <div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-ochre-700">Espace Apprenant</span>
+                            <h1 class="font-serif text-2xl sm:text-3xl font-semibold text-forest-950">Bienvenue, ${escapeHtml(user.fullName)}</h1>
+                            <p class="text-sm text-stone-500">${escapeHtml(user.email)}</p>
+                        </div>
+                        <button type="button" onclick="showSection('catalog')" class="px-4 py-2.5 rounded-xl bg-forest-800 text-white text-xs font-semibold">
+                            + Parcourir le catalogue
+                        </button>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h2 class="font-serif text-xl font-semibold text-forest-950">Mes formations débloquées (${activeEnrs.length})</h2>
+                        ${activeCardsHtml}
+                    </div>
+
+                    ${pendingTableHtml}
+                </div>
+            `;
+        }
+
+        // ==================== ESPACE ADMINISTRATEUR ====================
+        function renderAdminDashboard() {
+            const container = document.getElementById('admin-dashboard-container');
+            if (!container) return;
+
+            const user = getCurrentUser();
+            if (!user || user.role !== 'admin') {
+                container.innerHTML = `
+                    <div class="max-w-lg mx-auto bg-white rounded-2xl p-8 border border-stone-200 text-center space-y-4 shadow-xs">
+                        <h1 class="font-serif text-2xl font-semibold text-forest-950">Accès réservé à l'Administrateur</h1>
+                        <p class="text-sm text-stone-600">Seul le compte administrateur peut valider les paiements (<code class="text-forest-800">status = 'active'</code>), révoquer un accès ou associer des vidéos YouTube non répertoriées.</p>
+                        <button type="button" onclick="openAuthModal('login')" class="px-5 py-2.5 rounded-xl bg-ochre-700 hover:bg-ochre-600 text-white text-sm font-semibold">
+                            Se connecter en tant qu'Administrateur
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            const enrollmentsList = isLivePostgresActive() ? liveEnrollments : appState.enrollments;
+            const vaultMap = isLivePostgresActive() ? liveLessonsByCourse : appState.adminVideoVault;
+
+            const enrollmentRows = enrollmentsList.map(enr => {
+                const student = appState.users.find(u => u.id === enr.userId);
+                const course = INITIAL_COURSES.find(c => c.id === enr.courseId);
+                const displayName = student ? student.fullName : (enr.userFullName || enr.userId);
+                const displayEmail = student ? student.email : (enr.userEmail || '');
+
+                const statusBadge = enr.status === 'active'
+                    ? '<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 text-xs font-semibold">active</span>'
+                    : enr.status === 'pending'
+                        ? '<span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-semibold">pending</span>'
+                        : '<span class="px-2.5 py-1 rounded-full bg-rose-100 text-rose-900 text-xs font-semibold">revoked</span>';
+
+                return `
+                    <tr class="hover:bg-stone-50/80">
+                        <td class="px-4 py-3.5">
+                            <p class="font-semibold text-stone-900 text-sm">${escapeHtml(displayName)}</p>
+                            <p class="text-xs text-stone-500">${escapeHtml(displayEmail)}</p>
+                        </td>
+                        <td class="px-4 py-3.5 text-sm text-stone-800">
+                            ${escapeHtml(course ? course.title : enr.courseId)}
+                        </td>
+                        <td class="px-4 py-3.5 text-xs">
+                            <span class="block font-mono text-stone-800">${escapeHtml(enr.paymentRef || '—')}</span>
+                            <span class="text-stone-500">${escapeHtml(enr.paymentMethod || '')}</span>
+                        </td>
+                        <td class="px-4 py-3.5">${statusBadge}</td>
+                        <td class="px-4 py-3.5 text-right space-x-1.5 whitespace-nowrap">
+                            ${enr.status !== 'active'
+                                ? `<button type="button" onclick="adminUpdateEnrollmentStatus('${enr.id}', 'active')" class="px-3 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-900 text-white text-xs font-semibold">
+                                       Valider (active)
+                                   </button>`
+                                : ''
+                            }
+                            ${enr.status === 'active'
+                                ? `<button type="button" onclick="adminUpdateEnrollmentStatus('${enr.id}', 'revoked')" class="px-3 py-1.5 rounded-lg border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-semibold">
+                                       Révoquer
+                                   </button>`
+                                : ''
+                            }
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            const videoConfigCards = INITIAL_COURSES.map(course => {
+                const ids = vaultMap[course.id] || [];
+                return `
+                    <div class="bg-white rounded-xl p-4 border border-stone-200 space-y-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <h3 class="font-semibold text-sm text-forest-950">${escapeHtml(course.title)}</h3>
+                            <span class="text-[11px] px-2 py-0.5 rounded bg-stone-100 text-stone-600">${escapeHtml(course.format)}</span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                            ${course.syllabus.map((seq, idx) => `
+                                <div>
+                                    <label class="block text-[11px] text-stone-500 mb-1 truncate" title="${escapeHtml(seq.title)}">Séq. ${idx + 1} — ID YouTube</label>
+                                    <input type="text" value="${escapeHtml(ids[idx] || '')}" onchange="adminSaveVideoId('${course.id}', ${idx}, this.value, '${escapeHtml(seq.title)}', '${escapeHtml(seq.duration)}')" placeholder="Ex: dQw4w9WgXcQ"
+                                        class="w-full px-2.5 py-1.5 rounded-lg border border-stone-300 text-xs font-mono focus:outline-none focus:border-forest-800">
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="space-y-8">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 pb-6">
+                        <div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-ochre-700">Administration système</span>
+                            <h1 class="font-serif text-2xl sm:text-3xl font-semibold text-forest-950">Validation des accès &amp; Vidéos YouTube non répertoriées</h1>
+                        </div>
+                        <button type="button" onclick="openPostgresModal()" class="px-4 py-2.5 rounded-xl border border-stone-300 bg-white hover:bg-stone-50 text-xs font-semibold text-stone-800">
+                            Configurer PostgreSQL / RLS
+                        </button>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h2 class="font-serif text-xl font-semibold text-forest-950">Inscriptions et validations de paiement (${enrollmentsList.length})</h2>
+                        <div class="bg-white rounded-2xl border border-stone-200 overflow-x-auto shadow-xs">
+                            <table class="w-full text-left">
+                                <thead class="bg-sand text-xs uppercase text-stone-500 border-b border-stone-200">
+                                    <tr>
+                                        <th class="px-4 py-3">Apprenant</th>
+                                        <th class="px-4 py-3">Formation demandée</th>
+                                        <th class="px-4 py-3">Réf. Paiement</th>
+                                        <th class="px-4 py-3">Statut DB</th>
+                                        <th class="px-4 py-3 text-right">Action Admin</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-stone-100">
+                                    ${enrollmentRows}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div>
+                            <h2 class="font-serif text-xl font-semibold text-forest-950">Association des vidéos YouTube (Mode Non répertoriée)</h2>
+                            <p class="text-xs text-stone-500">Saisissez uniquement l'identifiant YouTube (ex. <code class="text-forest-800">M7lc1UVf-VE</code>). Ces identifiants ne sont lus que par les comptes ayant le statut <code class="text-forest-800">active</code>.</p>
+                        </div>
+                        <div class="space-y-3">
+                            ${videoConfigCards}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function adminUpdateEnrollmentStatus(enrollmentId, newStatus) {
+            if (isLivePostgresActive()) {
+                const adminUser = getCurrentUser();
+                if (!adminUser || adminUser.role !== 'admin') return;
+                const { error } = await supabaseClient
+                    .from('enrollments')
+                    .update({
+                        status: newStatus,
+                        validated_by: newStatus === 'active' ? adminUser.id : null,
+                        validated_at: newStatus === 'active' ? new Date().toISOString() : null
+                    })
+                    .eq('id', enrollmentId);
+                if (error) {
+                    showToast('Erreur PostgreSQL/RLS : ' + error.message);
+                    return;
+                }
+                await syncLiveSupabaseData();
+                updateGlobalUI();
+                renderAdminDashboard();
+                showToast(newStatus === 'active'
+                    ? 'Accès activé dans PostgreSQL (status = active).'
+                    : 'Accès révoqué dans PostgreSQL.');
+                return;
+            }
+
+            const enr = appState.enrollments.find(e => e.id === enrollmentId);
+            if (!enr) return;
+            enr.status = newStatus;
+            if (newStatus === 'active') {
+                enr.validatedAt = new Date().toISOString().slice(0, 16).replace('T', ' ');
+            }
+            saveState();
+            updateGlobalUI();
+            renderAdminDashboard();
+            showToast(newStatus === 'active'
+                ? 'Accès activé : l’étudiant peut désormais visionner les vidéos.'
+                : 'Accès révoqué pour cette inscription.');
+        }
+
+        async function adminSaveVideoId(courseId, lessonIndex, rawVal, lessonTitle = '', durationLabel = '20 min') {
+            const cleanId = (rawVal || '').trim();
+            if (isLivePostgresActive()) {
+                try {
+                    const { data: courseRow } = await supabaseClient
+                        .from('courses')
+                        .select('id')
+                        .eq('slug', courseId)
+                        .single();
+                    if (!courseRow) {
+                        showToast('Cours introuvable dans la table PostgreSQL courses (exécutez le script INSERT).');
+                        return;
+                    }
+                    const position = lessonIndex + 1;
+                    const { data: existingLesson } = await supabaseClient
+                        .from('course_lessons')
+                        .select('id')
+                        .eq('course_id', courseRow.id)
+                        .eq('position', position)
+                        .maybeSingle();
+
+                    if (existingLesson) {
+                        const { error } = await supabaseClient
+                            .from('course_lessons')
+                            .update({ youtube_video_id: cleanId })
+                            .eq('id', existingLesson.id);
+                        if (error) {
+                            showToast('Erreur mise à jour leçon : ' + error.message);
+                            return;
+                        }
+                    } else {
+                        const { error } = await supabaseClient
+                            .from('course_lessons')
+                            .insert({
+                                course_id: courseRow.id,
+                                title: lessonTitle || ('Séquence ' + position),
+                                position,
+                                duration_label: durationLabel,
+                                youtube_video_id: cleanId
+                            });
+                        if (error) {
+                            showToast('Erreur insertion leçon : ' + error.message);
+                            return;
+                        }
+                    }
+                    await syncLiveSupabaseData();
+                    showToast('ID vidéo enregistré dans PostgreSQL.');
+                } catch (err) {
+                    showToast('Erreur lors de l’enregistrement de la vidéo.');
+                }
+                return;
+            }
+
+            if (!appState.adminVideoVault[courseId]) {
+                appState.adminVideoVault[courseId] = [];
+            }
+            appState.adminVideoVault[courseId][lessonIndex] = cleanId;
+            saveState();
+            showToast('Identifiant vidéo YouTube enregistré.');
+        }
+
+        // ==================== AUTHENTIFICATION & DEMANDE D'ACCÈS ====================
+        function openAuthModal(mode = 'login') {
+            authModalMode = mode;
+            switchAuthTab(mode);
+            document.getElementById('auth-modal').classList.remove('hidden');
+        }
+
+        function closeAuthModal() {
+            document.getElementById('auth-modal').classList.add('hidden');
+        }
+
+        function switchAuthTab(mode) {
+            authModalMode = mode;
+            const loginTab = document.getElementById('tab-login');
+            const regTab = document.getElementById('tab-register');
+            const nameGroup = document.getElementById('register-name-group');
+            const title = document.getElementById('auth-modal-title');
+
+            if (mode === 'register') {
+                regTab.className = 'py-2 rounded-lg bg-white text-forest-900 shadow-xs';
+                loginTab.className = 'py-2 rounded-lg text-stone-600';
+                nameGroup.classList.remove('hidden');
+                title.textContent = 'Créer un compte apprenant';
+            } else {
+                loginTab.className = 'py-2 rounded-lg bg-white text-forest-900 shadow-xs';
+                regTab.className = 'py-2 rounded-lg text-stone-600';
+                nameGroup.classList.add('hidden');
+                title.textContent = 'Connexion à votre espace';
+            }
+        }
+
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value.trim().toLowerCase();
+            const password = document.getElementById('auth-password').value;
+            const fullNameInput = document.getElementById('auth-fullname').value.trim();
+
+            if (!email) return;
+
+            if (isLivePostgresActive()) {
+                if (authModalMode === 'register') {
+                    const { data, error } = await supabaseClient.auth.signUp({
+                        email,
+                        password,
+                        options: { data: { full_name: fullNameInput || email.split('@')[0] } }
+                    });
+                    if (error) {
+                        showToast('Inscription impossible : ' + error.message);
+                        return;
+                    }
+                    await startSupabaseMfaFlow('register', fullNameInput, email);
+                    return;
+                } else {
+                    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                    if (error) {
+                        showToast('Connexion impossible : ' + error.message);
+                        return;
+                    }
+                    await startSupabaseMfaFlow('login', fullNameInput, email);
+                    return;
+                }
+                return;
+            }
+
+            let user = appState.users.find(u => u.email.toLowerCase() === email);
+            if (authModalMode === 'register') {
+                if (user) {
+                    showToast('Un compte existe déjà avec cette adresse e-mail.');
+                    return;
+                }
+                user = {
+                    id: 'user-' + Date.now(),
+                    fullName: fullNameInput || email.split('@')[0],
+                    email: email,
+                    role: 'student'
+                };
+                showLocalMfaChallenge('register', user);
+                return;
+            } else {
+                if (!user) {
+                    showToast('Compte introuvable. Utilisez l’onglet « Créer un compte ».');
+                    return;
+                }
+                showLocalMfaChallenge('login', user);
+                return;
+            }
+        }
+
+        function quickSwitchAccount(preset) {
+            if (preset === 'guest') {
+                appState.currentUserId = null;
+            } else if (preset === 'student_new') {
+                appState.currentUserId = 'user-student-new';
+            } else if (preset === 'student_active') {
+                appState.currentUserId = 'user-student-active';
+            } else if (preset === 'admin') {
+                appState.currentUserId = 'user-admin-1';
+            }
+            saveState();
+            updateGlobalUI();
+            renderCatalog();
+            if (!document.getElementById('view-course-detail').classList.contains('hidden')) renderCourseDetail();
+            if (!document.getElementById('view-student').classList.contains('hidden')) renderStudentDashboard();
+            if (!document.getElementById('view-admin').classList.contains('hidden')) renderAdminDashboard();
+        }
+
+        async function logoutUser() {
+            if (isLivePostgresActive() && supabaseClient) {
+                await supabaseClient.auth.signOut();
+                liveUser = null;
+                liveEnrollments = [];
+                liveLessonsByCourse = {};
+                updateGlobalUI();
+                showSection('catalog');
+                showToast('Vous êtes déconnecté.');
+                return;
+            }
+            appState.currentUserId = null;
+            saveState();
+            updateGlobalUI();
+            showSection('catalog');
+            showToast('Vous êtes déconnecté.');
+        }
+
+        function openEnrollModal(courseId) {
+            const user = getCurrentUser();
+            if (!user) {
+                openAuthModal('login');
+                return;
+            }
+            const course = INITIAL_COURSES.find(c => c.id === courseId);
+            if (!course) return;
+
+            document.getElementById('enroll-course-id').value = course.id;
+            document.getElementById('enroll-payment-ref').value = '';
+            document.getElementById('enroll-course-summary').innerHTML = `
+                <p class="text-xs font-semibold uppercase text-ochre-700">${escapeHtml(course.format)} · ${escapeHtml(course.category)}</p>
+                <p class="font-serif text-base font-semibold text-forest-950">${escapeHtml(course.title)}</p>
+                <p class="text-xs text-stone-600">Montant à régler : <strong>${formatFcfa(course.priceFcfa)}</strong></p>
+            `;
+            document.getElementById('enroll-modal').classList.remove('hidden');
+        }
+
+        function closeEnrollModal() {
+            document.getElementById('enroll-modal').classList.add('hidden');
+        }
+
+        async function submitEnrollmentRequest(e) {
+            e.preventDefault();
+            const user = getCurrentUser();
+            if (!user) return;
+
+            const courseId = document.getElementById('enroll-course-id').value;
+            const method = document.getElementById('enroll-payment-method').value;
+            const ref = document.getElementById('enroll-payment-ref').value.trim();
+
+            if (isLivePostgresActive()) {
+                try {
+                    const { data: courseRow } = await supabaseClient
+                        .from('courses')
+                        .select('id')
+                        .eq('slug', courseId)
+                        .single();
+                    const dbCourseId = courseRow ? courseRow.id : courseId;
+
+                    const { error } = await supabaseClient
+                        .from('enrollments')
+                        .upsert({
+                            user_id: user.id,
+                            course_id: dbCourseId,
+                            status: 'pending',
+                            payment_method: method,
+                            payment_ref: ref
+                        }, { onConflict: 'user_id,course_id' });
+
+                    if (error) {
+                        showToast('Erreur demande PostgreSQL : ' + error.message);
+                        return;
+                    }
+                    await syncLiveSupabaseData();
+                    closeEnrollModal();
+                    updateGlobalUI();
+                    renderCatalog();
+                    if (!document.getElementById('view-course-detail').classList.contains('hidden')) {
+                        renderCourseDetail();
+                    }
+                    showToast('Demande envoyée dans PostgreSQL (statut : pending).');
+                } catch (err) {
+                    showToast('Erreur réseau lors de l’envoi de la demande.');
+                }
+                return;
+            }
+
+            const existing = getUserEnrollmentForCourse(user.id, courseId);
+            if (existing) {
+                existing.status = 'pending';
+                existing.paymentMethod = method;
+                existing.paymentRef = ref;
+                existing.createdAt = new Date().toISOString().slice(0, 16).replace('T', ' ');
+            } else {
+                appState.enrollments.push({
+                    id: 'enr-' + Date.now(),
+                    userId: user.id,
+                    courseId: courseId,
+                    status: 'pending',
+                    paymentMethod: method,
+                    paymentRef: ref,
+                    createdAt: new Date().toISOString().slice(0, 16).replace('T', ' ')
+                });
+            }
+
+            saveState();
+            closeEnrollModal();
+            updateGlobalUI();
+            renderCatalog();
+            if (!document.getElementById('view-course-detail').classList.contains('hidden')) {
+                renderCourseDetail();
+            }
+            showToast('Demande envoyée (statut : pending). En attente de validation par l’administrateur.');
+        }
+
+        // ==================== CONFIGURATION POSTGRESQL (SUPABASE) ====================
+        function openPostgresModal() {
+            const currentUser = getCurrentUser();
+            if (!currentUser || currentUser.role !== 'admin') {
+                showToast('Configuration réservée à l’administrateur.');
+                return;
+            }
+            try {
+                const saved = JSON.parse(localStorage.getItem(PG_CONFIG_KEY) || 'null');
+                if (saved) {
+                    document.getElementById('pg-url-input').value = saved.url || '';
+                    document.getElementById('pg-key-input').value = saved.anonKey || '';
+                }
+            } catch (e) {}
+            document.getElementById('postgres-modal').classList.remove('hidden');
+        }
+
+        function closePostgresModal() {
+            document.getElementById('postgres-modal').classList.add('hidden');
+        }
+
+        function initSupabaseIfConfigured() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(PG_CONFIG_KEY) || 'null');
+                if (saved && saved.url && saved.anonKey && window.supabase) {
+                    supabaseClient = window.supabase.createClient(saved.url, saved.anonKey);
+                    const statusEl = document.getElementById('pg-modal-status');
+                    if (statusEl) statusEl.textContent = 'Statut actuel : Connecté à PostgreSQL (' + saved.url + ')';
+                }
+            } catch (e) {
+                supabaseClient = null;
+            }
+        }
+
+        async function savePostgresConfig(e) {
+            e.preventDefault();
+            const url = document.getElementById('pg-url-input').value.trim();
+            const anonKey = document.getElementById('pg-key-input').value.trim();
+            if (!url || !anonKey) return;
+
+            localStorage.setItem(PG_CONFIG_KEY, JSON.stringify({ url, anonKey }));
+            initSupabaseIfConfigured();
+            if (isLivePostgresActive()) {
+                await syncLiveSupabaseData();
+            }
+            updateGlobalUI();
+            closePostgresModal();
+            showToast('Configuration PostgreSQL enregistrée et synchronisée.');
+        }
+
+        function disconnectPostgres() {
+            localStorage.removeItem(PG_CONFIG_KEY);
+            supabaseClient = null;
+            liveUser = null;
+            liveEnrollments = [];
+            liveLessonsByCourse = {};
+            document.getElementById('pg-url-input').value = '';
+            document.getElementById('pg-key-input').value = '';
+            const statusEl = document.getElementById('pg-modal-status');
+            if (statusEl) statusEl.textContent = 'Statut actuel : Simulation locale (aucune base externe connectée)';
+            updateGlobalUI();
+            renderCatalog();
+            showToast('Retour au mode local.');
+        }
+
+        function copySqlSchema() {
+            const codeEl = document.getElementById('sql-schema-code');
+            if (!codeEl) return;
+            const textarea = document.createElement('textarea');
+            textarea.value = codeEl.textContent;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast('Schéma SQL PostgreSQL / PostGIS copié dans le presse-papiers.');
+        }
+
+        // ==================== NOTIFICATIONS ====================
+        let toastTimer = null;
+        function showToast(msg) {
+            const box = document.getElementById('toast-box');
+            const text = document.getElementById('toast-text');
+            if (!box || !text) return;
+            text.textContent = msg;
+            box.classList.remove('hidden');
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(hideToast, 4500);
+        }
+
+        function hideToast() {
+            const box = document.getElementById('toast-box');
+            if (box) box.classList.add('hidden');
+        }
+
+        // ==================== AUTHENTIFICATION MFA (TOTP SUPABASE + CODE LOCAL) ====================
+        let pendingMfaContext = null; // { mode, email, fullName, localUser, factorId, challengeId, isEnroll }
+
+        function resetAuthModalState() {
+            const authForm = document.getElementById('auth-form');
+            const mfaBox = document.getElementById('mfa-step-box');
+            const mfaQrBox = document.getElementById('mfa-enroll-qr-box');
+            const mfaLocalHint = document.getElementById('mfa-local-hint');
+            const mfaInput = document.getElementById('mfa-code-input');
+            if (authForm) authForm.classList.remove('hidden');
+            if (mfaBox) mfaBox.classList.add('hidden');
+            if (mfaQrBox) mfaQrBox.classList.add('hidden');
+            if (mfaLocalHint) mfaLocalHint.classList.add('hidden');
+            if (mfaInput) mfaInput.value = '';
+            pendingMfaContext = null;
+        }
+
+        function cancelMfaStep() {
+            resetAuthModalState();
+        }
+
+        function generateSixDigitCode() {
+            return String(Math.floor(100000 + Math.random() * 900000));
+        }
+
+        function showLocalMfaChallenge(mode, userObj) {
+            const code = generateSixDigitCode();
+            pendingMfaContext = {
+                mode,
+                localUser: userObj,
+                expectedCode: code,
+                isLocal: true
+            };
+            document.getElementById('auth-form').classList.add('hidden');
+            document.getElementById('mfa-step-box').classList.remove('hidden');
+            document.getElementById('mfa-enroll-qr-box').classList.add('hidden');
+            document.getElementById('mfa-local-hint').classList.remove('hidden');
+            document.getElementById('mfa-expected-code').textContent = code;
+            document.getElementById('mfa-instruction-text').textContent =
+                mode === 'register'
+                    ? 'Finalisez la création de votre compte en saisissant le code MFA de vérification à 6 chiffres.'
+                    : 'Vérification MFA requise avant ouverture de votre session.';
+            document.getElementById('mfa-code-input').value = '';
+            document.getElementById('mfa-code-input').focus();
+        }
+
+        async function startSupabaseMfaFlow(mode, fullNameInput, email) {
+            try {
+                const { data: factorsData, error: factorsErr } = await supabaseClient.auth.mfa.listFactors();
+                if (factorsErr) {
+                    showToast('Erreur MFA : ' + factorsErr.message);
+                    return;
+                }
+                const verifiedTotp = (factorsData && factorsData.totp)
+                    ? factorsData.totp.find(f => f.status === 'verified')
+                    : null;
+
+                if (!verifiedTotp) {
+                    // Enrôlement TOTP automatique lors de la création de compte ou première connexion sans facteur actif
+                    const { data: enrollData, error: enrollErr } = await supabaseClient.auth.mfa.enroll({
+                        factorType: 'totp',
+                        friendlyName: 'GeoFormation Authenticator'
+                    });
+                    if (enrollErr) {
+                        showToast('Activation MFA impossible : ' + enrollErr.message);
+                        return;
+                    }
+                    const factorId = enrollData.id;
+                    const secret = (enrollData.totp && enrollData.totp.secret) || '';
+                    const { data: challengeData, error: challengeErr } = await supabaseClient.auth.mfa.challenge({ factorId });
+                    if (challengeErr) {
+                        showToast('Défi MFA impossible : ' + challengeErr.message);
+                        return;
+                    }
+
+                    pendingMfaContext = {
+                        mode,
+                        fullName: fullNameInput,
+                        email,
+                        factorId,
+                        challengeId: challengeData.id,
+                        isEnroll: true,
+                        isLocal: false
+                    };
+
+                    document.getElementById('auth-form').classList.add('hidden');
+                    document.getElementById('mfa-step-box').classList.remove('hidden');
+                    document.getElementById('mfa-local-hint').classList.add('hidden');
+                    document.getElementById('mfa-enroll-qr-box').classList.remove('hidden');
+                    document.getElementById('mfa-totp-secret').textContent = secret || 'Clé générée dans votre application';
+                    document.getElementById('mfa-instruction-text').textContent =
+                        'Enregistrez la clé TOTP dans votre application d’authentification puis saisissez le code à 6 chiffres.';
+                    document.getElementById('mfa-code-input').value = '';
+                    document.getElementById('mfa-code-input').focus();
+                    return;
+                }
+
+                // Facteur TOTP déjà vérifié -> défi MFA
+                const { data: challengeData, error: challengeErr } = await supabaseClient.auth.mfa.challenge({
+                    factorId: verifiedTotp.id
+                });
+                if (challengeErr) {
+                    showToast('Défi MFA impossible : ' + challengeErr.message);
+                    return;
+                }
+
+                pendingMfaContext = {
+                    mode,
+                    fullName: fullNameInput,
+                    email,
+                    factorId: verifiedTotp.id,
+                    challengeId: challengeData.id,
+                    isEnroll: false,
+                    isLocal: false
+                };
+
+                document.getElementById('auth-form').classList.add('hidden');
+                document.getElementById('mfa-step-box').classList.remove('hidden');
+                document.getElementById('mfa-enroll-qr-box').classList.add('hidden');
+                document.getElementById('mfa-local-hint').classList.add('hidden');
+                document.getElementById('mfa-instruction-text').textContent =
+                    'Entrez le code à 6 chiffres de votre application d’authentification (MFA).';
+                document.getElementById('mfa-code-input').value = '';
+                document.getElementById('mfa-code-input').focus();
+            } catch (err) {
+                showToast('Erreur lors de l’initialisation MFA.');
+            }
+        }
+
+        async function handleMfaVerifySubmit(e) {
+            e.preventDefault();
+            if (!pendingMfaContext) return;
+            const codeInput = (document.getElementById('mfa-code-input').value || '').trim();
+            if (!/^[0-9]{6}$/.test(codeInput)) {
+                showToast('Veuillez saisir un code MFA valide à 6 chiffres.');
+                return;
+            }
+
+            if (pendingMfaContext.isLocal) {
+                if (codeInput !== pendingMfaContext.expectedCode) {
+                    showToast('Code MFA incorrect. Vérifiez le code à 6 chiffres.');
+                    return;
+                }
+                const ctx = pendingMfaContext;
+                if (ctx.mode === 'register') {
+                    appState.users.push(ctx.localUser);
+                }
+                appState.currentUserId = ctx.localUser.id;
+                saveState();
+                resetAuthModalState();
+                closeAuthModal();
+                updateGlobalUI();
+                renderCatalog();
+                showToast(ctx.mode === 'register'
+                    ? 'Compte créé avec MFA activé (0 cours actif avant validation admin).'
+                    : 'Authentification MFA réussie. Bienvenue ' + ctx.localUser.fullName);
+                return;
+            }
+
+            if (isLivePostgresActive() && supabaseClient) {
+                const { error: verifyErr } = await supabaseClient.auth.mfa.verify({
+                    factorId: pendingMfaContext.factorId,
+                    challengeId: pendingMfaContext.challengeId,
+                    code: codeInput
+                });
+                if (verifyErr) {
+                    showToast('Vérification MFA refusée : ' + verifyErr.message);
+                    return;
+                }
+
+                const ctx = pendingMfaContext;
+                if (ctx.mode === 'register') {
+                    const { data: uData } = await supabaseClient.auth.getUser();
+                    if (uData && uData.user) {
+                        await supabaseClient.from('profiles').upsert({
+                            id: uData.user.id,
+                            full_name: ctx.fullName || ctx.email.split('@')[0],
+                            role: 'student'
+                        }, { onConflict: 'id' });
+                    }
+                }
+
+                await syncLiveSupabaseData();
+                resetAuthModalState();
+                closeAuthModal();
+                updateGlobalUI();
+                renderCatalog();
+                showToast(ctx.mode === 'register'
+                    ? 'Compte créé et sécurisé par MFA dans PostgreSQL.'
+                    : 'Connexion MFA validée.');
+            }
+        }
+
+        // Initialisation au chargement de la page
+        document.addEventListener('DOMContentLoaded', async () => {
+            syncDemoBannerVisibility();
+            initSupabaseIfConfigured();
+            if (isLivePostgresActive()) {
+                await syncLiveSupabaseData();
+            }
+            updateGlobalUI();
+            renderCatalog();
+        });
+    </script>
+</body>
+</html>
