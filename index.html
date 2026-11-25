@@ -1004,6 +1004,33 @@ on conflict (slug) do nothing;</pre>
             courseLocalIdByUuid = localByUuid;
         }
 
+        // ==================== SÉQUENCES PERSONNALISABLES (titre, durée, nombre) ====================
+        let liveSequencesByCourse = {};
+
+        function getCourseSequences(course) {
+            const custom = isLivePostgresActive()
+                ? liveSequencesByCourse[course.id]
+                : (appState.customSequences && appState.customSequences[course.id]);
+            return (custom && custom.length) ? custom : course.syllabus;
+        }
+
+        async function loadLiveSequences() {
+            const { data, error } = await supabaseClient
+                .from('course_sequences')
+                .select('course_id, position, title, duration_label')
+                .order('position', { ascending: true });
+            if (error || !data) return; // table absente : programme par défaut
+            const grouped = {};
+            data.forEach(r => {
+                const localId = courseLocalIdByUuid[r.course_id];
+                if (!localId) return;
+                if (!grouped[localId]) grouped[localId] = [];
+                grouped[localId][r.position - 1] = { title: r.title, duration: r.duration_label };
+            });
+            Object.keys(grouped).forEach(k => { grouped[k] = grouped[k].filter(Boolean); });
+            liveSequencesByCourse = grouped;
+        }
+
         async function syncLiveSupabaseData() {
             if (!supabaseClient) {
                 liveUser = null;
@@ -1012,6 +1039,8 @@ on conflict (slug) do nothing;</pre>
                 return;
             }
             try {
+                await loadCourseIdMap();
+                await loadLiveSequences();
                 const { data: authData } = await supabaseClient.auth.getUser();
                 const authUser = authData && authData.user ? authData.user : null;
                 if (!authUser) {
@@ -1020,8 +1049,6 @@ on conflict (slug) do nothing;</pre>
                     liveLessonsByCourse = {};
                     return;
                 }
-
-                await loadCourseIdMap();
 
                 const { data: profileData } = await supabaseClient
                     .from('profiles')
@@ -1067,7 +1094,7 @@ on conflict (slug) do nothing;</pre>
                 (lessonRows || []).forEach(lr => {
                     const localId = courseLocalIdByUuid[lr.course_id] || lr.course_id;
                     if (!grouped[localId]) grouped[localId] = [];
-                    grouped[localId].push(lr.youtube_video_id || '');
+                    grouped[localId][(lr.position || 1) - 1] = lr.youtube_video_id || '';
                 });
                 liveLessonsByCourse = grouped;
             } catch (err) {
@@ -1319,7 +1346,7 @@ on conflict (slug) do nothing;</pre>
 
                         <div class="pt-5 mt-5 border-t border-stone-100 flex items-center justify-between gap-3">
                             <div>
-                                <span class="block text-[11px] text-stone-400">${course.durationHours} h · ${course.syllabus.length} séquences</span>
+                                <span class="block text-[11px] text-stone-400">${course.durationHours} h · ${getCourseSequences(course).length} séquences</span>
                                 <span class="font-serif text-base font-semibold text-forest-900">${formatFcfa(course.priceFcfa)}</span>
                             </div>
                             <button type="button" onclick="openCourseDetail('${course.id}')" class="px-4 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-900 text-white text-xs font-semibold transition">
@@ -1359,7 +1386,8 @@ on conflict (slug) do nothing;</pre>
                 ? (isLivePostgresActive() ? (liveLessonsByCourse[course.id] || []) : (appState.adminVideoVault[course.id] || []))
                 : [];
             const currentVideoId = unlocked ? (videoIds[selectedLessonIndex] || '') : '';
-            const currentLesson = course.syllabus[selectedLessonIndex] || course.syllabus[0];
+            const courseSeqs = getCourseSequences(course);
+            const currentLesson = courseSeqs[selectedLessonIndex] || courseSeqs[0];
 
             let playerBlockHtml = '';
             if (unlocked) {
@@ -1438,7 +1466,7 @@ on conflict (slug) do nothing;</pre>
                 `;
             }
 
-            const lessonsHtml = course.syllabus.map((lesson, index) => {
+            const lessonsHtml = courseSeqs.map((lesson, index) => {
                 const isCurrent = index === selectedLessonIndex;
                 return `
                     <button type="button" onclick="${unlocked ? `selectLesson(${index})` : `showToast('Accès réservé aux comptes validés par l’administrateur.')`}"
@@ -1686,20 +1714,42 @@ on conflict (slug) do nothing;</pre>
 
             const videoConfigCards = INITIAL_COURSES.map(course => {
                 const ids = vaultMap[course.id] || [];
+                const seqs = getCourseSequences(course);
                 return `
                     <div class="bg-white rounded-xl p-4 border border-stone-200 space-y-3">
                         <div class="flex items-center justify-between gap-2">
                             <h3 class="font-semibold text-sm text-forest-950">${escapeHtml(course.title)}</h3>
-                            <span class="text-[11px] px-2 py-0.5 rounded bg-stone-100 text-stone-600">${escapeHtml(course.format)}</span>
+                            <span class="text-[11px] px-2 py-0.5 rounded bg-stone-100 text-stone-600">${escapeHtml(course.format)} · ${seqs.length} séquence${seqs.length > 1 ? 's' : ''}</span>
                         </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                            ${course.syllabus.map((seq, idx) => `
-                                <div>
-                                    <label class="block text-[11px] text-stone-500 mb-1 truncate" title="${escapeHtml(seq.title)}">Séq. ${idx + 1} — ID YouTube</label>
-                                    <input type="text" value="${escapeHtml(ids[idx] || '')}" onchange="adminSaveVideoId('${course.id}', ${idx}, this.value, '${escapeHtml(seq.title)}', '${escapeHtml(seq.duration)}')" placeholder="Ex: dQw4w9WgXcQ"
-                                        class="w-full px-2.5 py-1.5 rounded-lg border border-stone-300 text-xs font-mono focus:outline-none focus:border-forest-800">
+                        <div class="space-y-2.5">
+                            ${seqs.map((seq, idx) => `
+                                <div class="grid grid-cols-12 gap-2 items-end">
+                                    <div class="col-span-12 sm:col-span-5">
+                                        <label class="block text-[11px] text-stone-500 mb-1">Séq. ${idx + 1} — Titre</label>
+                                        <input type="text" id="seq-title-${course.id}-${idx}" value="${escapeHtml(seq.title)}" onchange="adminSaveSequenceRow('${course.id}', ${idx})"
+                                            class="w-full px-2.5 py-1.5 rounded-lg border border-stone-300 text-xs focus:outline-none focus:border-forest-800">
+                                    </div>
+                                    <div class="col-span-5 sm:col-span-2">
+                                        <label class="block text-[11px] text-stone-500 mb-1">Durée</label>
+                                        <input type="text" id="seq-dur-${course.id}-${idx}" value="${escapeHtml(seq.duration)}" onchange="adminSaveSequenceRow('${course.id}', ${idx})" placeholder="12 min"
+                                            class="w-full px-2.5 py-1.5 rounded-lg border border-stone-300 text-xs focus:outline-none focus:border-forest-800">
+                                    </div>
+                                    <div class="col-span-7 sm:col-span-5">
+                                        <label class="block text-[11px] text-stone-500 mb-1">ID YouTube</label>
+                                        <input type="text" id="seq-vid-${course.id}-${idx}" value="${escapeHtml(ids[idx] || '')}" onchange="adminSaveSequenceRow('${course.id}', ${idx})" placeholder="Ex: dQw4w9WgXcQ"
+                                            class="w-full px-2.5 py-1.5 rounded-lg border border-stone-300 text-xs font-mono focus:outline-none focus:border-forest-800">
+                                    </div>
                                 </div>
                             `).join('')}
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 pt-1">
+                            <button type="button" onclick="adminAddSequence('${course.id}')" class="px-3 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-900 text-white text-xs font-semibold">
+                                + Ajouter une séquence
+                            </button>
+                            ${seqs.length > 1 ? `
+                                <button type="button" onclick="adminRemoveLastSequence('${course.id}')" class="px-3 py-1.5 rounded-lg border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-800 text-xs font-semibold">
+                                    Supprimer la dernière séquence
+                                </button>` : ''}
                         </div>
                     </div>
                 `;
@@ -1740,7 +1790,7 @@ on conflict (slug) do nothing;</pre>
                     <div class="space-y-3">
                         <div>
                             <h2 class="font-serif text-xl font-semibold text-forest-950">Association des vidéos YouTube (Mode Non répertoriée)</h2>
-                            <p class="text-xs text-stone-500">Saisissez uniquement l'identifiant YouTube (ex. <code class="text-forest-800">M7lc1UVf-VE</code>). Ces identifiants ne sont lus que par les comptes ayant le statut <code class="text-forest-800">active</code>.</p>
+                            <p class="text-xs text-stone-500">Pour chaque formation, ajoutez autant de séquences que nécessaire, donnez un titre à chacune et saisissez uniquement l'identifiant YouTube (ex. <code class="text-forest-800">M7lc1UVf-VE</code>). Les identifiants ne sont lus que par les comptes ayant le statut <code class="text-forest-800">active</code>.</p>
                         </div>
                         <div class="space-y-3">
                             ${videoConfigCards}
@@ -1748,6 +1798,116 @@ on conflict (slug) do nothing;</pre>
                     </div>
                 </div>
             `;
+        }
+
+        // Enregistre le programme par défaut dans la base avant la première modification
+        async function adminMaterializeSequences(course) {
+            if (!isLivePostgresActive()) {
+                appState.customSequences = appState.customSequences || {};
+                if (!appState.customSequences[course.id]) {
+                    appState.customSequences[course.id] = course.syllabus.map(x => ({ title: x.title, duration: x.duration }));
+                }
+                return true;
+            }
+            if ((liveSequencesByCourse[course.id] || []).length) return true;
+            if (!Object.keys(courseUuidByLocalId).length) await loadCourseIdMap();
+            const uuid = courseUuidByLocalId[course.id];
+            if (!uuid) {
+                showToast('Cours introuvable dans la base (table courses).');
+                return false;
+            }
+            const rows = course.syllabus.map((x, i) => ({ course_id: uuid, position: i + 1, title: x.title, duration_label: x.duration }));
+            const { error } = await supabaseClient.from('course_sequences').upsert(rows, { onConflict: 'course_id,position' });
+            if (error) {
+                showToast('Séquences non enregistrées : ' + error.message + ' — exécutez le script SQL course_sequences.');
+                return false;
+            }
+            liveSequencesByCourse[course.id] = course.syllabus.map(x => ({ title: x.title, duration: x.duration }));
+            return true;
+        }
+
+        async function adminAddSequence(courseId) {
+            const course = INITIAL_COURSES.find(c => c.id === courseId);
+            if (!course) return;
+            if (!(await adminMaterializeSequences(course))) return;
+            const n = getCourseSequences(course).length + 1;
+            if (isLivePostgresActive()) {
+                const { error } = await supabaseClient.from('course_sequences').upsert({
+                    course_id: courseUuidByLocalId[courseId], position: n, title: 'Séquence ' + n, duration_label: '20 min'
+                }, { onConflict: 'course_id,position' });
+                if (error) {
+                    showToast('Ajout impossible : ' + error.message);
+                    return;
+                }
+                await syncLiveSupabaseData();
+            } else {
+                appState.customSequences[courseId].push({ title: 'Séquence ' + n, duration: '20 min' });
+                saveState();
+            }
+            renderAdminDashboard();
+            showToast('Séquence ' + n + ' ajoutée : renseignez son titre et son identifiant YouTube.');
+        }
+
+        async function adminRemoveLastSequence(courseId) {
+            const course = INITIAL_COURSES.find(c => c.id === courseId);
+            if (!course) return;
+            const seqs = getCourseSequences(course);
+            if (seqs.length <= 1) {
+                showToast('Une formation doit garder au moins une séquence.');
+                return;
+            }
+            const last = seqs[seqs.length - 1];
+            if (!window.confirm('Supprimer la dernière séquence « ' + last.title + ' » et son identifiant vidéo ?')) return;
+            const n = seqs.length;
+            if (isLivePostgresActive()) {
+                const uuid = courseUuidByLocalId[courseId];
+                const r1 = await supabaseClient.from('course_sequences').delete().eq('course_id', uuid).eq('position', n);
+                const r2 = await supabaseClient.from('course_lessons').delete().eq('course_id', uuid).eq('position', n);
+                if (r1.error || r2.error) {
+                    showToast('Suppression impossible : ' + ((r1.error || r2.error).message));
+                    return;
+                }
+                await syncLiveSupabaseData();
+            } else {
+                await adminMaterializeSequences(course);
+                appState.customSequences[courseId].pop();
+                if (appState.adminVideoVault[courseId]) appState.adminVideoVault[courseId].length = Math.min(appState.adminVideoVault[courseId].length, n - 1);
+                saveState();
+            }
+            renderAdminDashboard();
+            showToast('Séquence supprimée.');
+        }
+
+        async function adminSaveSequenceRow(courseId, idx) {
+            const course = INITIAL_COURSES.find(c => c.id === courseId);
+            if (!course) return;
+            const key = courseId + '-' + idx;
+            const title = (document.getElementById('seq-title-' + key).value || '').trim() || ('Séquence ' + (idx + 1));
+            const duration = (document.getElementById('seq-dur-' + key).value || '').trim() || '20 min';
+            const videoId = (document.getElementById('seq-vid-' + key).value || '').trim();
+            if (!(await adminMaterializeSequences(course))) return;
+
+            if (isLivePostgresActive()) {
+                const { error } = await supabaseClient.from('course_sequences').upsert({
+                    course_id: courseUuidByLocalId[courseId], position: idx + 1, title, duration_label: duration
+                }, { onConflict: 'course_id,position' });
+                if (error) {
+                    showToast('Enregistrement impossible : ' + error.message);
+                    return;
+                }
+            } else {
+                appState.customSequences[courseId][idx] = { title, duration };
+                saveState();
+            }
+            const stored = ((isLivePostgresActive() ? liveLessonsByCourse : appState.adminVideoVault)[courseId] || [])[idx] || '';
+            if (videoId !== stored) {
+                await adminSaveVideoId(courseId, idx, videoId, title, duration);
+            } else if (isLivePostgresActive()) {
+                await syncLiveSupabaseData();
+                showToast('Séquence enregistrée.');
+            } else {
+                showToast('Séquence enregistrée.');
+            }
         }
 
         async function adminUpdateEnrollmentStatus(enrollmentId, newStatus) {
